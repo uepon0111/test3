@@ -1,0 +1,4199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>鉄道シミュレーター</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    /* ================================================================
+       RESET & BASE
+    ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN',
+                   'Hiragino Sans', Meiryo, sans-serif;
+      background: #fff;
+      color: #1f2937;
+      height: 100dvh;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* ================================================================
+       LAYOUT
+    ================================================================ */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    /* --- Map area --- */
+    #map-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #f0f2f5;
+      min-height: 0;
+    }
+
+    #map-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      cursor: grab;
+      touch-action: none;
+    }
+    #map-canvas.mode-place  { cursor: crosshair; }
+    #map-canvas.mode-draw   { cursor: crosshair; }
+    #map-canvas.mode-select { cursor: default; }
+    #map-canvas.grabbing    { cursor: grabbing; }
+
+    /* --- Bottom panel --- */
+    #bottom-panel {
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-top: 2px solid #e5e7eb;
+      flex-shrink: 0;
+    }
+
+    @media (orientation: landscape) { #bottom-panel { height: 260px; } }
+    @media (orientation: portrait)  { #bottom-panel { height: 48dvh; } }
+
+    /* ================================================================
+       TAB BAR
+    ================================================================ */
+    #tab-bar {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 7px 4px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 10px;
+      color: #6b7280;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s, background .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn i { font-size: 15px; }
+    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
+    .tab-btn:hover:not(.active) { color: #374151; background: #f9fafb; }
+
+    /* ================================================================
+       TAB PANELS
+    ================================================================ */
+    #tab-content {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      min-height: 0;
+    }
+
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    .tab-panel.active { display: flex; }
+
+    .panel-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      background: #fafafa;
+      min-height: 0;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      min-height: 0;
+    }
+
+    /* ================================================================
+       BUTTONS
+    ================================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      color: #374151;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .1s, border-color .1s, color .1s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1.4;
+    }
+    .btn:hover:not(:disabled) { background: #f3f4f6; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+
+    .btn-danger  { background: #ef4444; border-color: #ef4444; color: #fff; }
+    .btn-danger:hover:not(:disabled)  { background: #dc2626; }
+
+    .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+    .btn-icon { padding: 5px 9px; }
+
+    .btn.active {
+      background: #eff6ff;
+      border-color: #2563eb;
+      color: #2563eb;
+    }
+
+    /* ================================================================
+       FORMS
+    ================================================================ */
+    label { font-size: 12px; color: #6b7280; }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-size: 12px;
+      color: #1f2937;
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px #dbeafe;
+    }
+    input[type="color"] {
+      width: 34px; height: 28px;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      cursor: pointer;
+      padding: 2px;
+      background: #fff;
+    }
+
+    /* ================================================================
+       STATION TAB
+    ================================================================ */
+    #station-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .station-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fafafa;
+      cursor: pointer;
+      transition: border-color .15s, background .1s;
+    }
+    .station-item:hover   { border-color: #93c5fd; background: #f8fbff; }
+    .station-item.selected { border-color: #2563eb; background: #eff6ff; }
+
+    .station-icon {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .station-name-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1f2937;
+      outline: none;
+      min-width: 0;
+    }
+    .station-name-input:focus {
+      outline: 1px solid #2563eb;
+      border-radius: 3px;
+      background: #fff;
+      padding: 0 4px;
+    }
+
+    .station-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    /* ================================================================
+       TRACK TAB
+    ================================================================ */
+    .mode-group {
+      display: flex;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .mode-group .btn {
+      border: none;
+      border-radius: 0;
+      border-right: 1px solid #d1d5db;
+    }
+    .mode-group .btn:last-child { border-right: none; }
+
+    #track-info {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    /* ================================================================
+       TIMETABLE TAB
+    ================================================================ */
+    .tt-layout {
+      display: flex;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .tt-sidebar {
+      width: 170px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      border-right: 1px solid #e5e7eb;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    #train-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .train-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: border-color .15s, background .1s;
+      background: #fafafa;
+    }
+    .train-item:hover   { border-color: #93c5fd; background: #f8fbff; }
+    .train-item.selected { border-color: #2563eb; background: #eff6ff; }
+
+    .train-color-swatch {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .train-name {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Schedule editor (right pane) */
+    .tt-editor {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      min-width: 0;
+    }
+
+    .sched-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sched-header input[type="text"] { width: 130px; }
+
+    /* Schedule stop list */
+    .sched-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sched-row {
+      display: flex;
+      gap: 0;
+    }
+
+    /* Vertical line */
+    .sched-line-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 32px;
+      flex-shrink: 0;
+    }
+    .sched-dot {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #fff;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .sched-dot.station  { background: #2563eb; }
+    .sched-dot.junction { background: #f59e0b; }
+    .sched-dot.endpoint { background: #10b981; }
+
+    .sched-vline {
+      width: 2px;
+      flex: 1;
+      background: #d1d5db;
+      min-height: 8px;
+    }
+
+    /* Stop content */
+    .sched-content {
+      flex: 1;
+      padding: 0 0 12px 8px;
+      min-width: 0;
+    }
+
+    .sched-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sched-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 10px;
+      align-items: center;
+    }
+
+    .sched-field {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+    .sched-field label { color: #9ca3af; white-space: nowrap; }
+
+    .time-input-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .time-input-group select { width: 52px; font-size: 11px; padding: 2px 4px; }
+
+    .sched-stop-pass { opacity: .6; }
+
+    .badge {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-amber{ background: #fef3c7; color: #b45309; }
+    .badge-green{ background: #d1fae5; color: #047857; }
+    .badge-gray { background: #f3f4f6; color: #374151; }
+    .badge-red  { background: #fee2e2; color: #dc2626; }
+
+    /* ================================================================
+       SIMULATION TAB
+    ================================================================ */
+    .sim-toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    #sim-time-display {
+      font-size: 22px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      min-width: 72px;
+      color: #1f2937;
+    }
+
+    .speed-group {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+
+    .speed-btn {
+      padding: 3px 7px;
+      font-size: 11px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      color: #374151;
+      transition: background .1s, color .1s;
+    }
+    .speed-btn:hover  { background: #f3f4f6; }
+    .speed-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+    #sim-train-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    #sim-train-table th {
+      text-align: left;
+      padding: 4px 8px;
+      background: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+      font-weight: 600;
+      color: #6b7280;
+    }
+    #sim-train-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    /* ================================================================
+       MAP OVERLAY
+    ================================================================ */
+    #map-overlay-toolbar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 10;
+    }
+    #map-overlay-toolbar .btn {
+      padding: 7px 9px;
+      box-shadow: 0 1px 5px rgba(0,0,0,.18);
+      font-size: 14px;
+    }
+
+    #map-io-toolbar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 5px;
+      z-index: 10;
+    }
+    #map-io-toolbar .btn {
+      box-shadow: 0 1px 5px rgba(0,0,0,.15);
+      font-size: 11px;
+    }
+
+    #map-zoom-info {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      font-size: 11px;
+      color: #4b5563;
+      background: rgba(255,255,255,.88);
+      padding: 3px 7px;
+      border-radius: 4px;
+      pointer-events: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+
+    #map-cursor-info {
+      position: absolute;
+      bottom: 8px;
+      right: 10px;
+      font-size: 11px;
+      color: #4b5563;
+      background: rgba(255,255,255,.88);
+      padding: 3px 7px;
+      border-radius: 4px;
+      pointer-events: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+
+    /* ================================================================
+       MODAL
+    ================================================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.hidden { display: none; }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 280px;
+      max-width: 92vw;
+      max-height: 88dvh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    }
+    .modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .modal-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .modal-row label { min-width: 80px; }
+
+    /* ================================================================
+       MISC
+    ================================================================ */
+    .divider-v {
+      width: 1px;
+      height: 22px;
+      background: #e5e7eb;
+      flex-shrink: 0;
+    }
+
+    .text-muted { color: #9ca3af; font-size: 12px; }
+    .text-sm    { font-size: 12px; }
+    .fw-bold    { font-weight: 700; }
+    .mt-2       { margin-top: 8px; }
+    .mt-3       { margin-top: 12px; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+    /* Hidden file input */
+    #import-file-input { display: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================================================
+       MAP AREA
+  ============================================================ -->
+  <div id="map-container">
+    <canvas id="map-canvas"></canvas>
+
+    <!-- Zoom toolbar (top-right) -->
+    <div id="map-overlay-toolbar">
+      <button class="btn btn-icon" id="btn-zoom-in"    title="拡大"><i class="fa-solid fa-plus"></i></button>
+      <button class="btn btn-icon" id="btn-zoom-out"   title="縮小"><i class="fa-solid fa-minus"></i></button>
+      <button class="btn btn-icon" id="btn-zoom-reset" title="全体表示"><i class="fa-solid fa-expand"></i></button>
+    </div>
+
+    <!-- I/O toolbar (top-left) -->
+    <div id="map-io-toolbar">
+      <button class="btn btn-sm" id="btn-export"><i class="fa-solid fa-file-export"></i> 書き出し</button>
+      <button class="btn btn-sm" id="btn-import"><i class="fa-solid fa-file-import"></i> 読み込み</button>
+      <input type="file" id="import-file-input" accept=".json">
+    </div>
+
+    <!-- Zoom info (bottom-left) -->
+    <div id="map-zoom-info">ズーム: <span id="zoom-label">100%</span></div>
+    <!-- Cursor pos (bottom-right) -->
+    <div id="map-cursor-info" id="cursor-label"></div>
+  </div><!-- /map-container -->
+
+  <!-- ============================================================
+       BOTTOM PANEL
+  ============================================================ -->
+  <div id="bottom-panel">
+
+    <!-- TAB BAR -->
+    <div id="tab-bar">
+      <button class="tab-btn active" data-tab="station">
+        <i class="fa-solid fa-location-dot"></i><span>駅配置</span>
+      </button>
+      <button class="tab-btn" data-tab="track">
+        <i class="fa-solid fa-route"></i><span>配線</span>
+      </button>
+      <button class="tab-btn" data-tab="timetable">
+        <i class="fa-solid fa-calendar-days"></i><span>ダイヤ設定</span>
+      </button>
+      <button class="tab-btn" data-tab="simulation">
+        <i class="fa-solid fa-circle-play"></i><span>実行</span>
+      </button>
+    </div>
+
+    <!-- TAB CONTENT -->
+    <div id="tab-content">
+
+      <!-- ======================================================
+           STATION TAB
+      ====================================================== -->
+      <div class="tab-panel active" id="panel-station">
+        <div class="panel-toolbar">
+          <button class="btn btn-primary btn-sm" id="btn-mode-place-station">
+            <i class="fa-solid fa-plus"></i> 駅を追加
+          </button>
+          <button class="btn btn-sm" id="btn-station-orient" disabled title="向きを変更">
+            <i class="fa-solid fa-arrows-rotate"></i> 向き変更
+          </button>
+          <button class="btn btn-danger btn-sm" id="btn-delete-station" disabled>
+            <i class="fa-solid fa-trash"></i> 削除
+          </button>
+          <div class="divider-v"></div>
+          <span class="text-muted" id="station-mode-hint">「駅を追加」→マップをクリックして配置</span>
+        </div>
+        <div class="panel-body">
+          <div id="station-list">
+            <p class="text-muted" id="station-empty-msg">駅がまだありません。「駅を追加」を押してマップ上に配置してください。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================
+           TRACK TAB
+      ====================================================== -->
+      <div class="tab-panel" id="panel-track">
+        <div class="panel-toolbar">
+          <div class="mode-group">
+            <button class="btn btn-sm active" id="btn-track-draw" data-mode="draw">
+              <i class="fa-solid fa-pen"></i> 線路を引く
+            </button>
+            <button class="btn btn-sm" id="btn-track-select" data-mode="select">
+              <i class="fa-solid fa-arrow-pointer"></i> 選択
+            </button>
+          </div>
+          <div class="divider-v"></div>
+          <button class="btn btn-danger btn-sm" id="btn-delete-track" disabled>
+            <i class="fa-solid fa-trash"></i> 削除
+          </button>
+          <div class="divider-v"></div>
+          <label for="travel-time-input">1マス所要時間:</label>
+          <input type="number" id="travel-time-input" value="2" min="0.1" max="999" step="0.1" style="width:56px">
+          <span class="text-muted">分</span>
+        </div>
+        <div class="panel-body">
+          <p class="text-muted">始点をクリックし、連続して次の隣接点をクリックで線路を延ばします。右クリックまたはESCでキャンセル。3本の線路が交わると自動的に分岐になります。</p>
+          <div id="track-error-msg" style="display:none;color:#dc2626;font-size:12px;margin-top:6px;padding:5px 8px;background:#fee2e2;border-radius:5px;border:1px solid #fca5a5"></div>
+          <div id="track-info" class="mt-2"></div>
+        </div>
+      </div>
+
+      <!-- ======================================================
+           TIMETABLE TAB
+      ====================================================== -->
+      <div class="tab-panel" id="panel-timetable">
+        <div class="panel-toolbar">
+          <button class="btn btn-primary btn-sm" id="btn-add-train">
+            <i class="fa-solid fa-plus"></i> 列車を追加
+          </button>
+          <button class="btn btn-danger btn-sm" id="btn-delete-train" disabled>
+            <i class="fa-solid fa-trash"></i> 削除
+          </button>
+        </div>
+        <div class="tt-layout panel-body" style="padding:0">
+          <!-- Left: train list -->
+          <div class="tt-sidebar">
+            <div id="train-list">
+              <p class="text-muted" style="font-size:11px" id="train-empty-msg">列車がありません</p>
+            </div>
+          </div>
+          <!-- Right: schedule editor -->
+          <div class="tt-editor" id="tt-editor">
+            <p class="text-muted" id="tt-empty-msg">左の一覧から列車を選択してください</p>
+            <div id="schedule-editor"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================
+           SIMULATION TAB
+      ====================================================== -->
+      <div class="tab-panel" id="panel-simulation">
+        <div class="panel-toolbar" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <div class="sim-toolbar-row">
+            <span id="sim-time-display">0:00</span>
+            <button class="btn btn-primary btn-icon" id="btn-play"  title="再生">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon" id="btn-stop" title="停止">
+              <i class="fa-solid fa-stop"></i>
+            </button>
+            <div class="divider-v"></div>
+            <label>開始時刻:</label>
+            <div class="time-input-group">
+              <select id="sim-start-h" style="width:58px"></select>
+              <span style="font-size:13px;font-weight:700">:</span>
+              <select id="sim-start-m" style="width:58px"></select>
+            </div>
+            <button class="btn btn-sm" id="btn-set-time"><i class="fa-solid fa-clock-rotate-left"></i> 設定</button>
+          </div>
+          <div class="sim-toolbar-row">
+            <label>倍速:</label>
+            <div class="speed-group" id="speed-group"></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <table id="sim-train-table">
+            <thead>
+              <tr>
+                <th>列車</th>
+                <th>状態</th>
+                <th>現在地</th>
+                <th>次の停車駅</th>
+              </tr>
+            </thead>
+            <tbody id="sim-train-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div><!-- /bottom-panel -->
+</div><!-- /app -->
+
+<!-- ============================================================
+     MODAL: Station settings
+============================================================ -->
+<div class="modal-overlay hidden" id="modal-station">
+  <div class="modal-box" style="min-width:320px">
+    <div class="modal-title"><i class="fa-solid fa-location-dot" style="color:#2563eb"></i> 駅の設定</div>
+    <div class="modal-row">
+      <label>駅名</label>
+      <input type="text" id="modal-station-name" style="flex:1">
+    </div>
+    <div class="modal-row">
+      <label>ホーム数</label>
+      <input type="number" id="modal-station-platforms" min="1" max="10" value="1" style="width:70px">
+      <span class="text-muted">番線</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-station-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="modal-station-ok">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: Train settings
+============================================================ -->
+<div class="modal-overlay hidden" id="modal-train">
+  <div class="modal-box" style="min-width:320px">
+    <div class="modal-title"><i class="fa-solid fa-train" style="color:#2563eb"></i> 列車の設定</div>
+    <div class="modal-row">
+      <label>列車名</label>
+      <input type="text" id="modal-train-name" style="flex:1">
+    </div>
+    <div class="modal-row">
+      <label>色</label>
+      <input type="color" id="modal-train-color" value="#e53e3e">
+    </div>
+    <div class="modal-row">
+      <label>始発駅</label>
+      <select id="modal-train-origin" style="flex:1"></select>
+    </div>
+    <div class="modal-row">
+      <label>繰り返し間隔</label>
+      <div class="time-input-group">
+        <select id="modal-train-repeat-h" style="width:60px"></select>
+        <span>時間</span>
+        <select id="modal-train-repeat-m" style="width:60px"></select>
+        <span>分</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-train-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="modal-train-ok">確定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   PART 1: CONSTANTS, STATE, UTILITIES, STORAGE
+================================================================ */
+
+'use strict';
+
+// ----------------------------------------------------------------
+// CONSTANTS
+// ----------------------------------------------------------------
+const GRID_PX       = 48;          // px per grid cell at zoom=1
+const MIN_ZOOM      = 0.15;
+const MAX_ZOOM      = 4.0;
+const ZOOM_STEP     = 0.15;
+const SQRT2         = Math.SQRT2;
+const STORAGE_KEY   = 'railsim_v2';
+const SPEED_STEPS   = [1, 2, 5, 10, 30, 60, 120, 300];
+const TRAIN_COLORS  = [
+  '#e53e3e','#dd6b20','#d69e2e','#38a169',
+  '#2b6cb0','#805ad5','#d53f8c','#2c7a7b'
+];
+
+// ----------------------------------------------------------------
+// MASTER STATE
+// ----------------------------------------------------------------
+const state = {
+  /* Persisted */
+  stations:          [],   // StationObj[]
+  tracks:            [],   // TrackObj[]
+  trains:            [],   // TrainObj[]
+  travelTimePerGrid: 2,    // minutes (straight 1-grid unit)
+
+  /* Runtime (not persisted) */
+  viewport: { offsetX: 0, offsetY: 0, zoom: 1 },
+  sim: {
+    running:     false,
+    currentTime: 0,      // seconds from midnight
+    speed:       1,
+    lastTs:      null,
+    animId:      null,
+  },
+};
+
+/*
+  StationObj {
+    id:          string
+    name:        string
+    gridX:       int        (top-left grid coord)
+    gridY:       int
+    platforms:   int        (1..10)
+    orientation: 'vertical' | 'horizontal'
+  }
+
+  TrackObj {
+    id:  string
+    x1:  int   (grid coord)
+    y1:  int
+    x2:  int
+    y2:  int
+    // x2-x1, y2-y1 each in {-1,0,1}, not both 0
+  }
+
+  TrainObj {
+    id:             string
+    name:           string
+    color:          string   (CSS hex)
+    originStationId:string
+    repeatInterval: int      (minutes)
+    stops:          StopObj[]   // ordered list including stations AND junctions
+  }
+
+  StopObj {
+    type:              'station' | 'junction'
+    // if station:
+    stationId?:        string
+    stopMode?:         'stop' | 'pass'
+    arrivalTime?:      int   (minutes from midnight)
+    departureTime?:    int
+    platform?:         int   (0-based index)
+    // if junction:
+    nodeKey?:          string  "x,y"
+    arrivalTime?:      int
+    direction?:        int   (index into junction's exits, 0=straight, 1=branch1)
+  }
+*/
+
+// ----------------------------------------------------------------
+// DERIVED: Node map  (rebuilt whenever tracks change)
+// ----------------------------------------------------------------
+// nodeMap["x,y"] = { x, y, trackIds: string[] }
+let nodeMap = {};
+
+function recomputeNodeMap() {
+  nodeMap = {};
+  for (const t of state.tracks) {
+    _addNodeEntry(t.x1, t.y1, t.id);
+    _addNodeEntry(t.x2, t.y2, t.id);
+  }
+}
+
+function _addNodeEntry(x, y, trackId) {
+  const k = nk(x, y);
+  if (!nodeMap[k]) nodeMap[k] = { x, y, trackIds: [] };
+  if (!nodeMap[k].trackIds.includes(trackId))
+    nodeMap[k].trackIds.push(trackId);
+}
+
+// ----------------------------------------------------------------
+// UI STATE  (not persisted)
+// ----------------------------------------------------------------
+let activeTab       = 'station';
+let selectedStationId = null;
+let selectedTrackId   = null;
+let selectedTrainId   = null;
+
+// Station placement
+let placingStation  = false;   // true while waiting for map click
+
+// Track drawing
+let trackMode       = 'draw';  // 'draw' | 'select'
+let drawStart       = null;    // {x,y} grid coords of first click, or null
+
+// Map drag
+let isDragging      = false;
+let dragStart       = { x: 0, y: 0 };
+let dragOrigin      = { x: 0, y: 0 };
+
+// Station drag
+let draggingStation = null;    // {id, startGX, startGY, mouseStartX, mouseStartY}
+
+// Pending station (waiting for modal confirm)
+let pendingStation  = null;    // {gridX, gridY}
+
+// Pending train modal
+let pendingTrainMode = null;   // 'add' | 'edit'
+
+// Touch gesture
+let lastTouchDist   = null;
+let lastTouchMid    = null;
+
+// ----------------------------------------------------------------
+// UTILITY: ID
+// ----------------------------------------------------------------
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// ----------------------------------------------------------------
+// UTILITY: Node key
+// ----------------------------------------------------------------
+function nk(x, y) { return `${x},${y}`; }
+
+function parseNk(k) {
+  const [x, y] = k.split(',').map(Number);
+  return { x, y };
+}
+
+// ----------------------------------------------------------------
+// UTILITY: Grid distance (accounts for diagonal = sqrt2)
+// ----------------------------------------------------------------
+function gridDist(x1, y1, x2, y2) {
+  const dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+  return (dx === 1 && dy === 1) ? SQRT2 : Math.max(dx, dy);
+}
+
+// ----------------------------------------------------------------
+// UTILITY: Travel time for one track segment (minutes)
+// ----------------------------------------------------------------
+function trackTravelTime(track) {
+  return gridDist(track.x1, track.y1, track.x2, track.y2)
+       * state.travelTimePerGrid;
+}
+
+// ----------------------------------------------------------------
+// UTILITY: Minutes -> "H:MM"
+// ----------------------------------------------------------------
+function fmtTime(min) {
+  if (min == null || isNaN(min)) return '--:--';
+  const h = Math.floor(min / 60);
+  const m = Math.floor(min % 60);
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+// ----------------------------------------------------------------
+// UTILITY: Seconds -> "H:MM:SS"
+// ----------------------------------------------------------------
+function fmtTimeSec(sec) {
+  const s = Math.floor(sec);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+// ----------------------------------------------------------------
+// UTILITY: Build <select> options for hours (0..47) and minutes
+// ----------------------------------------------------------------
+function populateTimeSelect(sel, max, step = 1) {
+  sel.innerHTML = '';
+  for (let i = 0; i <= max; i += step) {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = String(i).padStart(2, '0');
+    sel.appendChild(o);
+  }
+}
+
+// ----------------------------------------------------------------
+// STATION GEOMETRY HELPERS
+// ----------------------------------------------------------------
+
+/**
+ * Returns array of endpoint objects for a station's track connections.
+ * Each endpoint: { x, y, platformIndex (0-based), side }
+ *
+ * Vertical orientation (default):
+ *   Station occupies grid cols [gx .. gx+2], rows [gy .. gy+platforms-1]
+ *   Left  endpoints: (gx,    gy+i) for i=0..platforms-1   side='left'
+ *   Right endpoints: (gx+2,  gy+i) for i=0..platforms-1   side='right'
+ *
+ * Horizontal orientation:
+ *   Station occupies grid rows [gy .. gy+2], cols [gx .. gx+platforms-1]
+ *   Top    endpoints: (gx+i, gy)   for i=0..platforms-1   side='top'
+ *   Bottom endpoints: (gx+i, gy+2) for i=0..platforms-1   side='bottom'
+ */
+function stationEndpoints(s) {
+  const eps = [];
+  if (s.orientation === 'horizontal') {
+    for (let i = 0; i < s.platforms; i++) {
+      eps.push({ x: s.gridX + i, y: s.gridY,     platformIndex: i, side: 'top' });
+      eps.push({ x: s.gridX + i, y: s.gridY + 2, platformIndex: i, side: 'bottom' });
+    }
+  } else {
+    for (let i = 0; i < s.platforms; i++) {
+      eps.push({ x: s.gridX,     y: s.gridY + i, platformIndex: i, side: 'left' });
+      eps.push({ x: s.gridX + 2, y: s.gridY + i, platformIndex: i, side: 'right' });
+    }
+  }
+  return eps;
+}
+
+/**
+ * Bounding box of a station in grid units: {x, y, w, h}
+ * (x,y) = top-left, w/h = number of grid cells spanned
+ */
+function stationBounds(s) {
+  if (s.orientation === 'horizontal') {
+    return { x: s.gridX, y: s.gridY, w: s.platforms, h: 2 };
+  }
+  return { x: s.gridX, y: s.gridY, w: 2, h: s.platforms };
+}
+
+/**
+ * Returns the station that "owns" a given grid point as an endpoint,
+ * or null if none.
+ */
+function stationAtEndpoint(x, y) {
+  for (const s of state.stations) {
+    if (stationEndpoints(s).some(ep => ep.x === x && ep.y === y)) return s;
+  }
+  return null;
+}
+
+/**
+ * Returns the station whose body contains (x,y) (not just endpoints).
+ */
+function stationContaining(x, y) {
+  for (const s of state.stations) {
+    const b = stationBounds(s);
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return s;
+  }
+  return null;
+}
+
+/**
+ * Endpoint object for a given (x,y) within a specific station.
+ */
+function endpointAt(s, x, y) {
+  return stationEndpoints(s).find(ep => ep.x === x && ep.y === y) || null;
+}
+
+// ----------------------------------------------------------------
+// NODE TYPE
+// ----------------------------------------------------------------
+function nodeType(x, y) {
+  const n = nodeMap[nk(x, y)];
+  if (!n || n.trackIds.length === 0) return 'empty';
+  const c = n.trackIds.length;
+  if (c === 1) return 'endpoint';
+  if (c === 2) return 'pass';
+  return 'junction';   // 3+
+}
+
+function isJunction(x, y) {
+  return nodeType(x, y) === 'junction';
+}
+
+// ----------------------------------------------------------------
+// GRAPH: Given arrival at (x,y) via incomingTrackId,
+//        return outgoing track options [{trackId, toX, toY}]
+// ----------------------------------------------------------------
+function getExits(x, y, incomingTrackId) {
+  const n = nodeMap[nk(x, y)];
+  if (!n) return [];
+  return n.trackIds
+    .filter(tid => tid !== incomingTrackId)
+    .map(tid => {
+      const t = state.tracks.find(tr => tr.id === tid);
+      if (!t) return null;
+      if (t.x1 === x && t.y1 === y) return { trackId: tid, toX: t.x2, toY: t.y2, track: t };
+      return { trackId: tid, toX: t.x1, toY: t.y1, track: t };
+    })
+    .filter(Boolean);
+}
+
+// ----------------------------------------------------------------
+// GRAPH: Determine "straight" exit from a junction
+//        (exit that is collinear with the incoming direction)
+// ----------------------------------------------------------------
+function getStraightExit(fromX, fromY, viaX, viaY, exits) {
+  const dx = viaX - fromX, dy = viaY - fromY;
+  // straight = same direction
+  for (const ex of exits) {
+    const ex_dx = ex.toX - viaX, ex_dy = ex.toY - viaY;
+    if (Math.sign(ex_dx) === Math.sign(dx) && Math.sign(ex_dy) === Math.sign(dy)) return ex;
+  }
+  return exits[0] || null;
+}
+
+// ----------------------------------------------------------------
+// GRAPH: BFS / route finder
+// Find ordered route from a starting endpoint, honoring junction choices.
+// Returns array of route nodes:
+//   { type:'station'|'junction'|'endpoint', x, y, stationId?, nodeKey }
+// ----------------------------------------------------------------
+function findRoute(startStationId, startSide, junctionChoices) {
+  // junctionChoices: { [nodeKey]: 'straight' | 'branch' }
+  const startStation = state.stations.find(s => s.id === startStationId);
+  if (!startStation) return [];
+
+  // Find entry point: depends on side
+  // We'll explore from each endpoint of the start station
+  // For simplicity, we start from the endpoints on the "exit" side
+  // The starting endpoint's outgoing track determines the route
+
+  const eps = stationEndpoints(startStation);
+  if (!eps.length) return [];
+
+  const route = [];
+  const visited = new Set();
+
+  // Start from the first endpoint that has a track connected
+  let startEp = null;
+  let startTrackId = null;
+  for (const ep of eps) {
+    const n = nodeMap[nk(ep.x, ep.y)];
+    if (n && n.trackIds.length > 0) {
+      startEp = ep;
+      startTrackId = n.trackIds[0];
+      break;
+    }
+  }
+  if (!startEp) return [];
+
+  // Trace forward
+  route.push({
+    type: 'station',
+    x: startEp.x, y: startEp.y,
+    stationId: startStationId,
+    nodeKey: nk(startEp.x, startEp.y)
+  });
+
+  let curX = startEp.x, curY = startEp.y;
+  let incomingTrackId = null;
+
+  // Move to the other end of startTrack
+  const t0 = state.tracks.find(tr => tr.id === startTrackId);
+  if (!t0) return route;
+  let nextX = (t0.x1 === curX && t0.y1 === curY) ? t0.x2 : t0.x1;
+  let nextY = (t0.x1 === curX && t0.y1 === curY) ? t0.y2 : t0.y1;
+  incomingTrackId = startTrackId;
+  curX = nextX; curY = nextY;
+
+  for (let i = 0; i < 200; i++) {
+    const key = nk(curX, curY);
+    if (visited.has(key)) break;
+    visited.add(key);
+
+    // Is this a station endpoint?
+    const atStation = stationAtEndpoint(curX, curY);
+    if (atStation) {
+      route.push({
+        type: 'station',
+        x: curX, y: curY,
+        stationId: atStation.id,
+        nodeKey: key
+      });
+      // Don't continue through station automatically – stop here
+      break;
+    }
+
+    const exits = getExits(curX, curY, incomingTrackId);
+    if (exits.length === 0) {
+      // Dead end
+      route.push({ type: 'endpoint', x: curX, y: curY, nodeKey: key });
+      break;
+    }
+
+    if (exits.length === 1) {
+      // Passthrough – keep going
+      const ex = exits[0];
+      incomingTrackId = ex.trackId;
+      curX = ex.toX; curY = ex.toY;
+    } else {
+      // Junction
+      route.push({ type: 'junction', x: curX, y: curY, nodeKey: key });
+      // Choose direction
+      const choice = junctionChoices[key] || 'straight';
+      let chosen;
+      if (choice === 'straight') {
+        chosen = getStraightExit(/* prevX */ null, /* prevY */ null, curX, curY, exits);
+        // Actually we need the incoming direction
+        const prevTrack = state.tracks.find(tr => tr.id === incomingTrackId);
+        if (prevTrack) {
+          const prevX = (prevTrack.x2 === curX && prevTrack.y2 === curY) ? prevTrack.x1 : prevTrack.x2;
+          const prevY = (prevTrack.x2 === curX && prevTrack.y2 === curY) ? prevTrack.y1 : prevTrack.y2;
+          chosen = getStraightExit(prevX, prevY, curX, curY, exits) || exits[0];
+        } else {
+          chosen = exits[0];
+        }
+      } else {
+        // branch: pick the non-straight one
+        const prevTrack = state.tracks.find(tr => tr.id === incomingTrackId);
+        if (prevTrack) {
+          const straight = getStraightExit(
+            (prevTrack.x2 === curX && prevTrack.y2 === curY) ? prevTrack.x1 : prevTrack.x2,
+            (prevTrack.x2 === curX && prevTrack.y2 === curY) ? prevTrack.y1 : prevTrack.y2,
+            curX, curY, exits
+          );
+          chosen = exits.find(ex => ex !== straight) || exits[0];
+        } else {
+          chosen = exits[0];
+        }
+      }
+      if (!chosen) break;
+      incomingTrackId = chosen.trackId;
+      curX = chosen.toX; curY = chosen.toY;
+    }
+  }
+
+  return route;
+}
+
+// ----------------------------------------------------------------
+// STORAGE: Save / Load
+// ----------------------------------------------------------------
+function stateToJSON() {
+  return {
+    stations:          state.stations,
+    tracks:            state.tracks,
+    trains:            state.trains,
+    travelTimePerGrid: state.travelTimePerGrid,
+  };
+}
+
+function applyJSON(data) {
+  state.stations          = data.stations          || [];
+  state.tracks            = data.tracks            || [];
+  state.trains            = data.trains            || [];
+  state.travelTimePerGrid = data.travelTimePerGrid ?? 2;
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToJSON()));
+  } catch(e) { /* quota exceeded – ignore */ }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    applyJSON(JSON.parse(raw));
+    return true;
+  } catch(e) { return false; }
+}
+
+function exportData() {
+  const json  = JSON.stringify(stateToJSON(), null, 2);
+  const blob  = new Blob([json], { type: 'application/json' });
+  const url   = URL.createObjectURL(blob);
+  const a     = document.createElement('a');
+  a.href      = url;
+  a.download  = '鉄道シミュレーター.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      applyJSON(JSON.parse(e.target.result));
+      recomputeNodeMap();
+      saveState();
+      renderAll();
+      renderStationTab();
+      renderTrackTab();
+      renderTrainList();
+    } catch(_) {
+      alert('読み込みに失敗しました。形式が正しいか確認してください。');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ----------------------------------------------------------------
+// CANVAS COORDINATE HELPERS
+// ----------------------------------------------------------------
+
+/** Grid coords → canvas pixel coords (canvas-space, before DPR scaling) */
+function gridToCanvas(gx, gy) {
+  return {
+    x: gx * GRID_PX * state.viewport.zoom + state.viewport.offsetX,
+    y: gy * GRID_PX * state.viewport.zoom + state.viewport.offsetY,
+  };
+}
+
+/** Canvas pixel coords → grid coords (float) */
+function canvasToGrid(cx, cy) {
+  return {
+    x: (cx - state.viewport.offsetX) / (GRID_PX * state.viewport.zoom),
+    y: (cy - state.viewport.offsetY) / (GRID_PX * state.viewport.zoom),
+  };
+}
+
+/** Canvas pixel coords → nearest integer grid coords */
+function snapToGrid(cx, cy) {
+  const g = canvasToGrid(cx, cy);
+  return { x: Math.round(g.x), y: Math.round(g.y) };
+}
+
+/** Is a grid point visible in the canvas viewport? */
+function isGridPointVisible(gx, gy, w, h) {
+  const c = gridToCanvas(gx, gy);
+  const pad = GRID_PX * state.viewport.zoom * 2;
+  return c.x > -pad && c.x < w + pad
+      && c.y > -pad && c.y < h + pad;
+}
+
+/** Track segment visible? (crude bbox check) */
+function isTrackVisible(t, w, h) {
+  const pad = GRID_PX * state.viewport.zoom * 2;
+  const p1 = gridToCanvas(t.x1, t.y1);
+  const p2 = gridToCanvas(t.x2, t.y2);
+  const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+  const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+  return maxX > -pad && minX < w + pad && maxY > -pad && minY < h + pad;
+}
+
+// ----------------------------------------------------------------
+// VALIDATION: Check if a new track can be placed
+// ----------------------------------------------------------------
+function canPlaceTrack(x1, y1, x2, y2) {
+  // Must be adjacent (8-direction, step 1)
+  const dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+  if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
+
+  // No duplicate
+  if (state.tracks.some(t =>
+    (t.x1 === x1 && t.y1 === y1 && t.x2 === x2 && t.y2 === y2) ||
+    (t.x1 === x2 && t.y1 === y2 && t.x2 === x1 && t.y2 === y1)
+  )) return false;
+
+  // Max 3 tracks per node (junction can have at most 3 connections)
+  const n1 = nodeMap[nk(x1, y1)];
+  const n2 = nodeMap[nk(x2, y2)];
+  if (n1 && n1.trackIds.length >= 3) return false;
+  if (n2 && n2.trackIds.length >= 3) return false;
+
+  return true;
+}
+
+// ----------------------------------------------------------------
+// MUTATION HELPERS
+// ----------------------------------------------------------------
+function addStation(gridX, gridY, platforms, name, orientation) {
+  const id = genId();
+  state.stations.push({
+    id, name, gridX, gridY,
+    platforms: platforms || 1,
+    orientation: orientation || 'vertical',
+  });
+  saveState();
+  return id;
+}
+
+function removeStation(id) {
+  state.stations = state.stations.filter(s => s.id !== id);
+  // Remove tracks connected to its endpoints
+  const eps = [];
+  // (already removed from state, so get endpoints before removal)
+  // Actually: collect connected node keys first, then filter tracks
+  recomputeNodeMap(); // needed after removal
+  saveState();
+}
+
+function addTrack(x1, y1, x2, y2) {
+  if (!canPlaceTrack(x1, y1, x2, y2)) return null;
+  const id = genId();
+  state.tracks.push({ id, x1, y1, x2, y2 });
+  _addNodeEntry(x1, y1, id);
+  _addNodeEntry(x2, y2, id);
+  saveState();
+  return id;
+}
+
+function removeTrack(id) {
+  state.tracks = state.tracks.filter(t => t.id !== id);
+  recomputeNodeMap();
+  saveState();
+}
+
+function addTrain(name, color, originStationId, repeatInterval) {
+  const id = genId();
+  state.trains.push({
+    id, name, color,
+    originStationId,
+    repeatInterval: repeatInterval || 60,
+    stops: [],
+  });
+  saveState();
+  return id;
+}
+
+function removeTrain(id) {
+  state.trains = state.trains.filter(t => t.id !== id);
+  saveState();
+}
+
+// ----------------------------------------------------------------
+// TRAIN STOP DEFAULTS
+// (Generate default stop list from route for a new/updated train)
+// ----------------------------------------------------------------
+function buildDefaultStops(train) {
+  // Build route with all-straight junctions
+  const route = buildRouteForTrain(train, {});
+  if (!route.length) return [];
+
+  const stops = [];
+  let timeCursor = 0; // minutes
+
+  for (let i = 0; i < route.length; i++) {
+    const node = route[i];
+    if (node.type === 'station') {
+      const s = state.stations.find(st => st.id === node.stationId);
+      const stopObj = {
+        type: 'station',
+        stationId: node.stationId,
+        stopMode: (i === 0 || i === route.length - 1) ? 'stop' : 'stop',
+        arrivalTime:   i === 0 ? timeCursor : timeCursor,
+        departureTime: i === 0 ? timeCursor : timeCursor + 3,
+        platform: node.platformIndex || 0,
+      };
+      stops.push(stopObj);
+      timeCursor = stopObj.departureTime;
+    } else if (node.type === 'junction') {
+      stops.push({
+        type: 'junction',
+        nodeKey: node.nodeKey,
+        arrivalTime: timeCursor,
+        direction: 'straight',
+      });
+      // travel time to junction was already added between station and here
+    }
+    // Add travel time to next node
+    if (i < route.length - 1) {
+      const next = route[i + 1];
+      // estimate distance via track
+      const t = state.tracks.find(tr =>
+        ((tr.x1 === node.x && tr.y1 === node.y && tr.x2 === next.x && tr.y2 === next.y) ||
+         (tr.x2 === node.x && tr.y2 === node.y && tr.x1 === next.x && tr.y1 === next.y))
+      );
+      const travelMin = t ? trackTravelTime(t) : state.travelTimePerGrid;
+      timeCursor += travelMin;
+    }
+  }
+
+  return stops;
+}
+
+function buildRouteForTrain(train, junctionChoices) {
+  if (!train.originStationId) return [];
+  return findRoute(train.originStationId, 'auto', junctionChoices || {});
+}
+
+</script>
+<script>
+/* ================================================================
+   PART 2: MAP CANVAS – PAN / ZOOM / RENDER ENGINE
+================================================================ */
+
+// ----------------------------------------------------------------
+// Canvas setup (DPR-aware)
+// ----------------------------------------------------------------
+const canvas  = document.getElementById('map-canvas');
+const ctx     = canvas.getContext('2d');
+let   dpr     = window.devicePixelRatio || 1;
+
+function resizeCanvas() {
+  const container = document.getElementById('map-container');
+  const W = container.clientWidth;
+  const H = container.clientHeight;
+  dpr = window.devicePixelRatio || 1;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  renderMap();
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+// ----------------------------------------------------------------
+// VIEWPORT helpers
+// ----------------------------------------------------------------
+function applyZoom(delta, pivotX, pivotY) {
+  const vp   = state.viewport;
+  const oldZ = vp.zoom;
+  let   newZ = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, oldZ + delta));
+  const ratio = newZ / oldZ;
+  vp.offsetX = pivotX - (pivotX - vp.offsetX) * ratio;
+  vp.offsetY = pivotY - (pivotY - vp.offsetY) * ratio;
+  vp.zoom    = newZ;
+  document.getElementById('zoom-label').textContent =
+    Math.round(newZ * 100) + '%';
+}
+
+function centerViewport() {
+  // Center on all stations, or origin if empty
+  const vp = state.viewport;
+  vp.zoom  = 1;
+  if (state.stations.length === 0) {
+    const W = canvas.width  / dpr;
+    const H = canvas.height / dpr;
+    vp.offsetX = W / 2;
+    vp.offsetY = H / 2;
+  } else {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const s of state.stations) {
+      const b = stationBounds(s);
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+    }
+    const W = canvas.width  / dpr;
+    const H = canvas.height / dpr;
+    const cx = (minX + maxX) / 2 * GRID_PX;
+    const cy = (minY + maxY) / 2 * GRID_PX;
+    vp.offsetX = W / 2 - cx;
+    vp.offsetY = H / 2 - cy;
+  }
+  document.getElementById('zoom-label').textContent =
+    Math.round(vp.zoom * 100) + '%';
+}
+
+// ----------------------------------------------------------------
+// MAIN RENDER
+// ----------------------------------------------------------------
+function renderMap() {
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  const w = W / dpr, h = H / dpr;
+
+  // Background
+  ctx.fillStyle = '#f0f2f5';
+  ctx.fillRect(0, 0, w, h);
+
+  const vp   = state.viewport;
+  const zoom = vp.zoom;
+  const cellPx = GRID_PX * zoom;
+
+  // ---- Draw grid (only in station/track tab) ----
+  if (activeTab === 'station' || activeTab === 'track') {
+    drawGrid(ctx, w, h, vp, cellPx);
+  }
+
+  // ---- Tracks ----
+  drawTracks(ctx, w, h, vp, cellPx);
+
+  // ---- Junction markers ----
+  if (activeTab === 'station' || activeTab === 'track') {
+    drawJunctions(ctx, vp, cellPx);
+  }
+
+  // ---- Stations ----
+  drawStations(ctx, w, h, vp, cellPx);
+
+  // ---- Track drawing preview / snap indicator ----
+  if (activeTab === 'track' && trackMode === 'draw') {
+    drawTrackPreview(ctx, vp, cellPx);
+  }
+
+  // ---- Train markers (simulation) ----
+  if (activeTab === 'simulation' || state.sim.running) {
+    drawTrains(ctx, w, h, vp, cellPx);
+  }
+
+  // ---- Timetable route highlight ----
+  if (activeTab === 'timetable' && selectedTrainId) {
+    drawRouteHighlight(ctx, vp, cellPx);
+  }
+
+  ctx.restore();
+}
+
+// ----------------------------------------------------------------
+// GRID
+// ----------------------------------------------------------------
+function drawGrid(ctx, w, h, vp, cellPx) {
+  // Compute visible grid range
+  const x0 = Math.floor(-vp.offsetX / cellPx) - 1;
+  const y0 = Math.floor(-vp.offsetY / cellPx) - 1;
+  const x1 = Math.ceil((w - vp.offsetX) / cellPx) + 1;
+  const y1 = Math.ceil((h - vp.offsetY) / cellPx) + 1;
+
+  // Dot size scales with zoom
+  const dotR = Math.max(1, Math.min(3, cellPx * 0.06));
+
+  ctx.fillStyle = '#b0bec5';
+  for (let gx = x0; gx <= x1; gx++) {
+    for (let gy = y0; gy <= y1; gy++) {
+      const px = gx * cellPx + vp.offsetX;
+      const py = gy * cellPx + vp.offsetY;
+      ctx.beginPath();
+      ctx.arc(px, py, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// ----------------------------------------------------------------
+// TRACKS
+// ----------------------------------------------------------------
+function drawTracks(ctx, w, h, vp, cellPx) {
+  const lineW = Math.max(1.5, cellPx * 0.06);
+
+  for (const t of state.tracks) {
+    if (!isTrackVisible(t, w, h)) continue;
+
+    const p1 = gridToCanvas(t.x1, t.y1);
+    const p2 = gridToCanvas(t.x2, t.y2);
+
+    // Highlight selected track
+    const isSelected = selectedTrackId === t.id && activeTab === 'track';
+
+    ctx.save();
+    ctx.strokeStyle = isSelected ? '#ef4444' : '#374151';
+    ctx.lineWidth   = isSelected ? lineW * 2.2 : lineW * 1.4;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+
+    // Rail sleepers (ties) when zoomed in
+    if (cellPx > 30 && !isSelected) {
+      drawSleepers(ctx, p1.x, p1.y, p2.x, p2.y, lineW, cellPx);
+    }
+    ctx.restore();
+  }
+}
+
+function drawSleepers(ctx, x1, y1, x2, y2, lineW, cellPx) {
+  const dx   = x2 - x1, dy = y2 - y1;
+  const len  = Math.sqrt(dx * dx + dy * dy);
+  if (len < 2) return;
+  const nx   = -dy / len, ny = dx / len; // normal
+  const step = cellPx * 0.25;
+  const count = Math.floor(len / step);
+  const slW  = lineW * 2.5;
+  const slH  = lineW * 0.8;
+
+  ctx.save();
+  ctx.strokeStyle = '#78909c';
+  ctx.lineWidth   = slH;
+  ctx.lineCap     = 'butt';
+  for (let i = 1; i < count; i++) {
+    const t  = i / count;
+    const cx = x1 + dx * t;
+    const cy = y1 + dy * t;
+    ctx.beginPath();
+    ctx.moveTo(cx + nx * slW, cy + ny * slW);
+    ctx.lineTo(cx - nx * slW, cy - ny * slW);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ----------------------------------------------------------------
+// JUNCTIONS
+// ----------------------------------------------------------------
+function drawJunctions(ctx, vp, cellPx) {
+  const r = Math.max(3, cellPx * 0.13);
+  for (const [key, node] of Object.entries(nodeMap)) {
+    if (node.trackIds.length < 3) continue;
+    const p = gridToCanvas(node.x, node.y);
+    ctx.save();
+    ctx.fillStyle   = '#f59e0b';
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ----------------------------------------------------------------
+// STATIONS
+// ----------------------------------------------------------------
+function drawStations(ctx, w, h, vp, cellPx) {
+  for (const s of state.stations) {
+    const b  = stationBounds(s);
+    const tl = gridToCanvas(b.x, b.y);
+    const br = gridToCanvas(b.x + b.w, b.y + b.h);
+
+    // Rough visibility check
+    if (br.x < -cellPx || tl.x > w + cellPx ||
+        br.y < -cellPx || tl.y > h + cellPx) continue;
+
+    const isSelected = selectedStationId === s.id && activeTab === 'station';
+
+    ctx.save();
+
+    // Station body
+    const bw = (br.x - tl.x);
+    const bh = (br.y - tl.y);
+
+    ctx.fillStyle   = '#fff';
+    ctx.strokeStyle = isSelected ? '#ef4444' : '#2563eb';
+    ctx.lineWidth   = isSelected ? 2.5 : 2;
+    ctx.shadowColor = 'rgba(37,99,235,0.18)';
+    ctx.shadowBlur  = 6;
+
+    // Draw platforms (horizontal lines inside station body)
+    if (s.orientation === 'vertical') {
+      for (let i = 0; i < s.platforms; i++) {
+        const py = gridToCanvas(b.x, b.y + i).y;
+        const px1 = tl.x, px2 = br.x;
+        // Platform rect
+        const platH = Math.max(2, cellPx * 0.35);
+        ctx.fillStyle = '#dbeafe';
+        ctx.fillRect(px1, py - platH / 2, px2 - px1, platH);
+        ctx.strokeStyle = isSelected ? '#ef4444' : '#2563eb';
+        ctx.strokeRect(px1, py - platH / 2, px2 - px1, platH);
+      }
+    } else {
+      for (let i = 0; i < s.platforms; i++) {
+        const px = gridToCanvas(b.x + i, b.y).x;
+        const py1 = tl.y, py2 = br.y;
+        const platW = Math.max(2, cellPx * 0.35);
+        ctx.fillStyle = '#dbeafe';
+        ctx.fillRect(px - platW / 2, py1, platW, py2 - py1);
+        ctx.strokeStyle = isSelected ? '#ef4444' : '#2563eb';
+        ctx.strokeRect(px - platW / 2, py1, platW, py2 - py1);
+      }
+    }
+
+    // Station name label
+    ctx.shadowBlur  = 0;
+    const fontSize  = Math.max(9, Math.min(14, cellPx * 0.26));
+    ctx.font        = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'middle';
+    const midX      = (tl.x + br.x) / 2;
+    const midY      = (tl.y + br.y) / 2;
+
+    // White background for label
+    const textW = ctx.measureText(s.name).width + 6;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(midX - textW / 2, midY - fontSize / 2 - 2, textW, fontSize + 4);
+
+    ctx.fillStyle = isSelected ? '#dc2626' : '#1e40af';
+    ctx.fillText(s.name, midX, midY);
+
+    // Endpoint dots
+    drawStationEndpoints(ctx, s, isSelected, cellPx);
+
+    ctx.restore();
+  }
+}
+
+function drawStationEndpoints(ctx, s, isSelected, cellPx) {
+  const r = Math.max(3, cellPx * 0.11);
+  const eps = stationEndpoints(s);
+  for (const ep of eps) {
+    const p = gridToCanvas(ep.x, ep.y);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle   = isSelected ? '#ef4444' : '#1d4ed8';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = 1.5;
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+// ----------------------------------------------------------------
+// TRACK DRAWING PREVIEW + SNAP INDICATOR
+// ----------------------------------------------------------------
+let hoverGrid = { x: 0, y: 0 }; // {x, y} grid coords under cursor
+
+function drawTrackPreview(ctx, vp, cellPx) {
+  if (!hoverGrid) return;
+  const hSnapped = snapOrStation(hoverGrid.x, hoverGrid.y);
+
+  // Always draw snap indicator at cursor position
+  const snapPt = gridToCanvas(hSnapped.x, hSnapped.y);
+  const snapR  = Math.max(5, cellPx * 0.15);
+
+  if (!drawStart) {
+    // No start selected yet: show hover indicator
+    ctx.save();
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth   = 2;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(snapPt.x, snapPt.y, snapR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#2563eb';
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  // Draw start is set: show preview line
+  const { x: hx, y: hy } = hSnapped;
+  const dx = Math.abs(hx - drawStart.x), dy = Math.abs(hy - drawStart.y);
+  const valid = (dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0))
+             && canPlaceTrack(drawStart.x, drawStart.y, hx, hy);
+  const isSame = dx === 0 && dy === 0;
+
+  const p1 = gridToCanvas(drawStart.x, drawStart.y);
+  const p2 = gridToCanvas(hx, hy);
+
+  ctx.save();
+
+  // Preview line
+  if (!isSame) {
+    ctx.strokeStyle = valid ? '#2563eb' : '#ef4444';
+    ctx.lineWidth   = Math.max(2.5, cellPx * 0.08);
+    ctx.lineCap     = 'round';
+    ctx.setLineDash([7, 4]);
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Start point (filled blue)
+  ctx.globalAlpha = 1;
+  ctx.fillStyle   = '#2563eb';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.arc(p1.x, p1.y, Math.max(5, cellPx * 0.14), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // "S" label on start
+  if (cellPx > 24) {
+    ctx.font = `bold ${Math.max(8, cellPx * 0.18)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('S', p1.x, p1.y);
+  }
+
+  // Snap cursor indicator
+  ctx.strokeStyle = valid ? '#2563eb' : (isSame ? '#f59e0b' : '#ef4444');
+  ctx.lineWidth   = 2.5;
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.arc(snapPt.x, snapPt.y, snapR, 0, Math.PI * 2);
+  ctx.stroke();
+  if (!isSame) {
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle   = valid ? '#2563eb' : '#ef4444';
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// Snap to station endpoint if exactly matching grid coords
+function snapOrStation(gx, gy) {
+  for (const s of state.stations) {
+    for (const ep of stationEndpoints(s)) {
+      if (ep.x === gx && ep.y === gy) return { x: ep.x, y: ep.y };
+    }
+  }
+  // Also snap to existing track nodes for easy connection
+  const key = nk(gx, gy);
+  if (nodeMap[key]) return { x: gx, y: gy };
+  return { x: gx, y: gy };
+}
+
+// ----------------------------------------------------------------
+// ROUTE HIGHLIGHT (timetable tab)
+// ----------------------------------------------------------------
+function drawRouteHighlight(ctx, vp, cellPx) {
+  const train = state.trains.find(t => t.id === selectedTrainId);
+  if (!train) return;
+
+  // Build junction choices from stops
+  const jChoices = {};
+  for (const stop of train.stops) {
+    if (stop.type === 'junction') jChoices[stop.nodeKey] = stop.direction || 'straight';
+  }
+
+  // Get route nodes
+  const route = buildRouteForTrain(train, jChoices);
+  if (route.length < 2) return;
+
+  const lineW = Math.max(3, cellPx * 0.14);
+  ctx.save();
+  ctx.strokeStyle = train.color || '#2563eb';
+  ctx.lineWidth   = lineW;
+  ctx.lineCap     = 'round';
+  ctx.globalAlpha = 0.55;
+
+  for (let i = 0; i + 1 < route.length; i++) {
+    const a = route[i], b = route[i + 1];
+    const pa = gridToCanvas(a.x, a.y);
+    const pb = gridToCanvas(b.x, b.y);
+    ctx.beginPath();
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ----------------------------------------------------------------
+// TRAINS (simulation)
+// ----------------------------------------------------------------
+let trainPositions = []; // [{trainId, x, y (canvas grid), color, name, status}]
+
+function drawTrains(ctx, w, h, vp, cellPx) {
+  for (const tp of trainPositions) {
+    const p = gridToCanvas(tp.gx, tp.gy);
+    // Visibility check
+    if (p.x < -20 || p.x > w + 20 || p.y < -20 || p.y > h + 20) continue;
+
+    const r = Math.max(5, cellPx * 0.18);
+
+    ctx.save();
+    // Shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur  = 4;
+    ctx.fillStyle   = tp.color;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+
+    // Label
+    if (cellPx > 28) {
+      const fontSize = Math.max(7, Math.min(11, cellPx * 0.2));
+      ctx.font        = `bold ${fontSize}px sans-serif`;
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle   = '#1f2937';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth   = 3;
+      ctx.strokeText(tp.name, p.x, p.y - r - 1);
+      ctx.fillText(tp.name, p.x, p.y - r - 1);
+    }
+    ctx.restore();
+  }
+}
+
+// ----------------------------------------------------------------
+// CANVAS MOUSE / TOUCH EVENTS
+// ----------------------------------------------------------------
+let pointerDownOnCanvas = false;
+
+canvas.addEventListener('pointerdown', onCanvasPointerDown);
+canvas.addEventListener('pointermove', onCanvasPointerMove);
+canvas.addEventListener('pointerup',   onCanvasPointerUp);
+canvas.addEventListener('pointerleave',onCanvasPointerLeave);
+canvas.addEventListener('wheel',       onCanvasWheel, { passive: false });
+
+function canvasXY(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function onCanvasPointerDown(e) {
+  if (e.pointerType === 'touch') return; // handled by touch events
+  e.preventDefault();
+  pointerDownOnCanvas = true;
+
+  const { x, y } = canvasXY(e);
+  const g = snapToGrid(x, y);
+
+  // ---- Station placement mode ----
+  if (placingStation) {
+    onMapClickForStation(g.x, g.y);
+    return;
+  }
+
+  // ---- Station drag (station tab) ----
+  if (activeTab === 'station' && e.button === 0) {
+    const hit = hitTestStation(x, y);
+    if (hit) {
+      // Check if click is on the station body (not endpoint)
+      selectStation(hit.id);
+      draggingStation = {
+        id: hit.id,
+        startGX: hit.gridX, startGY: hit.gridY,
+        mouseStartX: x, mouseStartY: y,
+      };
+      canvas.classList.add('grabbing');
+      return;
+    }
+    selectStation(null);
+  }
+
+  // ---- Track tab ----
+  if (activeTab === 'track') {
+    if (trackMode === 'draw' && e.button === 0) {
+      const gs = snapOrStation(g.x, g.y); // snap to station endpoint if nearby
+      if (!drawStart) {
+        drawStart = { x: gs.x, y: gs.y };
+      } else {
+        // Attempt to place track
+        const x2 = gs.x, y2 = gs.y;
+        const dx = Math.abs(x2 - drawStart.x), dy = Math.abs(y2 - drawStart.y);
+        if (dx === 0 && dy === 0) {
+          // Same point: cancel
+          drawStart = null;
+          showTrackError('');
+        } else if (dx > 1 || dy > 1) {
+          showTrackError('隣接する点（1マス以内）を選択してください。斜めは45度のみ対応です。');
+        } else if (!canPlaceTrack(drawStart.x, drawStart.y, x2, y2)) {
+          const n1 = nodeMap[nk(drawStart.x, drawStart.y)];
+          const n2 = nodeMap[nk(x2, y2)];
+          if (n1 && n1.trackIds.length >= 3) showTrackError('始点はすでに3本の線路が接続されています（上限）。');
+          else if (n2 && n2.trackIds.length >= 3) showTrackError('終点はすでに3本の線路が接続されています（上限）。');
+          else showTrackError('その区間にはすでに線路があります。');
+        } else {
+          addTrack(drawStart.x, drawStart.y, x2, y2);
+          showTrackError('');
+          // 連続描画: 終点を次の始点にセット
+          drawStart = { x: x2, y: y2 };
+          renderTrackTab();
+        }
+        renderMap();
+      }
+      return;
+    }
+    if (trackMode === 'select' && e.button === 0) {
+      const hit = hitTestTrack(x, y);
+      if (hit) {
+        selectTrack(hit.id);
+      } else {
+        selectTrack(null);
+      }
+    }
+  }
+
+  // ---- Map pan (right button or middle, or no special mode) ----
+  if (e.button === 1 || e.button === 2 ||
+      (activeTab === 'simulation' || activeTab === 'timetable') && e.button === 0) {
+    isDragging  = true;
+    dragStart   = { x, y };
+    dragOrigin  = { x: state.viewport.offsetX, y: state.viewport.offsetY };
+    canvas.classList.add('grabbing');
+  }
+}
+
+function onCanvasPointerMove(e) {
+  if (e.pointerType === 'touch') return;
+  const { x, y } = canvasXY(e);
+  const g  = snapToGrid(x, y);
+  hoverGrid = g;
+
+  // Update cursor info
+  const ci = document.getElementById('map-cursor-info');
+  if (ci) ci.textContent = `グリッド (${g.x}, ${g.y})`;
+
+  if (draggingStation) {
+    moveDraggingStation(x, y);
+    return;
+  }
+
+  if (isDragging) {
+    state.viewport.offsetX = dragOrigin.x + (x - dragStart.x);
+    state.viewport.offsetY = dragOrigin.y + (y - dragStart.y);
+  }
+
+  renderMap();
+}
+
+function onCanvasPointerUp(e) {
+  if (e.pointerType === 'touch') return;
+  if (draggingStation) {
+    draggingStation = null;
+    saveState();
+  }
+  if (isDragging) isDragging = false;
+  canvas.classList.remove('grabbing');
+  pointerDownOnCanvas = false;
+}
+
+function onCanvasPointerLeave() {
+  hoverGrid = null;
+  if (!isDragging && !draggingStation) {
+    canvas.classList.remove('grabbing');
+  }
+  renderMap();
+}
+
+function onCanvasWheel(e) {
+  e.preventDefault();
+  const { x, y } = canvasXY(e);
+  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+  applyZoom(delta, x, y);
+  document.getElementById('zoom-label').textContent =
+    Math.round(state.viewport.zoom * 100) + '%';
+  renderMap();
+}
+
+// ----------------------------------------------------------------
+// TOUCH EVENTS (pinch zoom + pan)
+// ----------------------------------------------------------------
+let touches = {};
+
+canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
+
+function getTouchXY(touch) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const { x, y } = getTouchXY(e.touches[0]);
+    const g = snapToGrid(x, y);
+
+    if (placingStation) {
+      onMapClickForStation(g.x, g.y);
+      return;
+    }
+    if (activeTab === 'station') {
+      const hit = hitTestStation(x, y);
+      if (hit) {
+        selectStation(hit.id);
+        draggingStation = {
+          id: hit.id,
+          startGX: hit.gridX, startGY: hit.gridY,
+          mouseStartX: x, mouseStartY: y,
+        };
+        return;
+      }
+    }
+    if (activeTab === 'track' && trackMode === 'draw') {
+      const gs2 = snapOrStation(g.x, g.y);
+      if (!drawStart) {
+        drawStart = gs2;
+      } else {
+        const dx = Math.abs(gs2.x - drawStart.x), dy = Math.abs(gs2.y - drawStart.y);
+        if (dx === 0 && dy === 0) {
+          drawStart = null;
+        } else if (dx <= 1 && dy <= 1 && canPlaceTrack(drawStart.x, drawStart.y, gs2.x, gs2.y)) {
+          addTrack(drawStart.x, drawStart.y, gs2.x, gs2.y);
+          drawStart = { x: gs2.x, y: gs2.y }; // 連続描画
+          renderTrackTab();
+        } else {
+          showTrackError('隣接する点をタップしてください。');
+        }
+        renderMap();
+      }
+      return;
+    }
+    // Pan
+    isDragging = true;
+    dragStart  = { x, y };
+    dragOrigin = { x: state.viewport.offsetX, y: state.viewport.offsetY };
+
+  } else if (e.touches.length === 2) {
+    isDragging     = false;
+    draggingStation = null;
+    const t1 = getTouchXY(e.touches[0]);
+    const t2 = getTouchXY(e.touches[1]);
+    lastTouchDist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+    lastTouchMid  = { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 };
+    dragOrigin    = { x: state.viewport.offsetX, y: state.viewport.offsetY };
+    dragStart     = lastTouchMid;
+  }
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const { x, y } = getTouchXY(e.touches[0]);
+    hoverGrid = snapToGrid(x, y);
+    if (draggingStation) {
+      moveDraggingStation(x, y);
+      return;
+    }
+    if (isDragging) {
+      state.viewport.offsetX = dragOrigin.x + (x - dragStart.x);
+      state.viewport.offsetY = dragOrigin.y + (y - dragStart.y);
+    }
+    renderMap();
+
+  } else if (e.touches.length === 2) {
+    const t1 = getTouchXY(e.touches[0]);
+    const t2 = getTouchXY(e.touches[1]);
+    const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+    const mid  = { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 };
+
+    if (lastTouchDist && lastTouchMid) {
+      // Pinch zoom
+      const scaleDelta = (dist / lastTouchDist - 1) * 0.7;
+      applyZoom(scaleDelta, mid.x, mid.y);
+
+      // Pan
+      state.viewport.offsetX += mid.x - lastTouchMid.x;
+      state.viewport.offsetY += mid.y - lastTouchMid.y;
+    }
+    lastTouchDist = dist;
+    lastTouchMid  = mid;
+    document.getElementById('zoom-label').textContent =
+      Math.round(state.viewport.zoom * 100) + '%';
+    renderMap();
+  }
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  if (e.touches.length === 0) {
+    isDragging      = false;
+    lastTouchDist   = null;
+    lastTouchMid    = null;
+    if (draggingStation) { draggingStation = null; saveState(); }
+  }
+}
+
+// ----------------------------------------------------------------
+// HIT TESTING
+// ----------------------------------------------------------------
+function hitTestStation(cx, cy) {
+  const threshold = Math.max(GRID_PX * state.viewport.zoom * 1.2, 20);
+  for (const s of state.stations) {
+    const b  = stationBounds(s);
+    const tl = gridToCanvas(b.x, b.y);
+    const br = gridToCanvas(b.x + b.w, b.y + b.h);
+    if (cx >= tl.x - 6 && cx <= br.x + 6 &&
+        cy >= tl.y - 6 && cy <= br.y + 6) {
+      return s;
+    }
+  }
+  return null;
+}
+
+function hitTestTrack(cx, cy) {
+  const threshold = Math.max(6, GRID_PX * state.viewport.zoom * 0.12);
+  for (const t of state.tracks) {
+    const p1 = gridToCanvas(t.x1, t.y1);
+    const p2 = gridToCanvas(t.x2, t.y2);
+    const dist = pointToSegmentDist(cx, cy, p1.x, p1.y, p2.x, p2.y);
+    if (dist < threshold) return t;
+  }
+  return null;
+}
+
+function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+// ----------------------------------------------------------------
+// STATION DRAG
+// ----------------------------------------------------------------
+function moveDraggingStation(mx, my) {
+  if (!draggingStation) return;
+  const s = state.stations.find(s => s.id === draggingStation.id);
+  if (!s) return;
+  const gCur   = snapToGrid(mx, my);
+  const gStart = snapToGrid(draggingStation.mouseStartX, draggingStation.mouseStartY);
+  s.gridX = draggingStation.startGX + (gCur.x - gStart.x);
+  s.gridY = draggingStation.startGY + (gCur.y - gStart.y);
+  renderMap();
+}
+
+// ----------------------------------------------------------------
+// ZOOM TOOLBAR BUTTONS
+// ----------------------------------------------------------------
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  const W = canvas.width / dpr, H = canvas.height / dpr;
+  applyZoom(ZOOM_STEP, W / 2, H / 2);
+  renderMap();
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  const W = canvas.width / dpr, H = canvas.height / dpr;
+  applyZoom(-ZOOM_STEP, W / 2, H / 2);
+  renderMap();
+});
+document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+  centerViewport();
+  renderMap();
+});
+
+// I/O buttons
+document.getElementById('btn-export').addEventListener('click', exportData);
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+});
+document.getElementById('import-file-input').addEventListener('change', e => {
+  if (e.target.files[0]) importData(e.target.files[0]);
+  e.target.value = '';
+});
+
+// ----------------------------------------------------------------
+// renderAll: convenience wrapper
+// ----------------------------------------------------------------
+function renderAll() {
+  renderMap();
+}
+
+</script>
+
+<script>
+/* ================================================================
+   PART 3: STATION PLACEMENT TAB
+================================================================ */
+
+// ----------------------------------------------------------------
+// Station counter for default naming
+// ----------------------------------------------------------------
+let stationCounter = 1;
+function nextStationName() {
+  return `駅${stationCounter++}`;
+}
+
+// ----------------------------------------------------------------
+// Selection helpers
+// ----------------------------------------------------------------
+function selectStation(id) {
+  selectedStationId = id;
+  document.getElementById('btn-delete-station').disabled = !id;
+  document.getElementById('btn-station-orient').disabled = !id;
+  renderStationTab();
+  renderMap();
+}
+
+function selectTrack(id) {
+  selectedTrackId = id;
+  document.getElementById('btn-delete-track').disabled = !id;
+  renderMap();
+}
+
+// ----------------------------------------------------------------
+// Place-station mode
+// ----------------------------------------------------------------
+document.getElementById('btn-mode-place-station').addEventListener('click', () => {
+  placingStation = !placingStation;
+  const btn = document.getElementById('btn-mode-place-station');
+  if (placingStation) {
+    btn.classList.add('active');
+    btn.innerHTML = '<i class="fa-solid fa-xmark"></i> キャンセル';
+    canvas.classList.add('mode-place');
+    document.getElementById('station-mode-hint').textContent = 'マップをクリックして駅を配置';
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '<i class="fa-solid fa-plus"></i> 駅を追加';
+    canvas.classList.remove('mode-place');
+    document.getElementById('station-mode-hint').textContent = '「駅を追加」→マップをクリックして配置';
+  }
+});
+
+// ----------------------------------------------------------------
+// Map click → place station
+// ----------------------------------------------------------------
+function onMapClickForStation(gx, gy) {
+  // Check for overlap with existing stations
+  if (wouldOverlapStation(gx, gy, 1, 'vertical')) {
+    alert('その位置には既に駅があります。別の場所を選んでください。');
+    return;
+  }
+
+  pendingStation = { gridX: gx, gridY: gy };
+  openStationModal(null); // null = new station
+}
+
+function wouldOverlapStation(gx, gy, platforms, orientation) {
+  const testBounds = orientation === 'horizontal'
+    ? { x: gx, y: gy, w: platforms, h: 2 }
+    : { x: gx, y: gy, w: 2, h: platforms };
+
+  for (const s of state.stations) {
+    const b = stationBounds(s);
+    // AABB overlap
+    if (testBounds.x <= b.x + b.w && testBounds.x + testBounds.w >= b.x &&
+        testBounds.y <= b.y + b.h && testBounds.y + testBounds.h >= b.y) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ----------------------------------------------------------------
+// Station modal
+// ----------------------------------------------------------------
+const modalStation = document.getElementById('modal-station');
+
+function openStationModal(stationId) {
+  const nameInput  = document.getElementById('modal-station-name');
+  const platInput  = document.getElementById('modal-station-platforms');
+
+  if (stationId) {
+    const s = state.stations.find(s => s.id === stationId);
+    if (!s) return;
+    nameInput.value = s.name;
+    platInput.value = s.platforms;
+    modalStation._editId = stationId;
+  } else {
+    nameInput.value = nextStationName();
+    platInput.value = 1;
+    modalStation._editId = null;
+  }
+  modalStation.classList.remove('hidden');
+  nameInput.focus();
+  nameInput.select();
+}
+
+document.getElementById('modal-station-ok').addEventListener('click', () => {
+  const name     = document.getElementById('modal-station-name').value.trim() || nextStationName();
+  const platforms = Math.max(1, Math.min(10, parseInt(document.getElementById('modal-station-platforms').value) || 1));
+
+  if (modalStation._editId) {
+    // Edit existing
+    const s = state.stations.find(s => s.id === modalStation._editId);
+    if (s) { s.name = name; s.platforms = platforms; }
+    saveState();
+  } else {
+    // New station
+    const { gridX, gridY } = pendingStation;
+    addStation(gridX, gridY, platforms, name, 'vertical');
+    // Exit placing mode after each placement
+    exitPlacingMode();
+  }
+  modalStation.classList.add('hidden');
+  pendingStation = null;
+  recomputeNodeMap(); // endpoints may change
+  renderStationTab();
+  renderMap();
+});
+
+document.getElementById('modal-station-cancel').addEventListener('click', () => {
+  modalStation.classList.add('hidden');
+  pendingStation = null;
+  exitPlacingMode();
+});
+
+function exitPlacingMode() {
+  placingStation = false;
+  const btn = document.getElementById('btn-mode-place-station');
+  btn.classList.remove('active');
+  btn.innerHTML = '<i class="fa-solid fa-plus"></i> 駅を追加';
+  canvas.classList.remove('mode-place');
+  document.getElementById('station-mode-hint').textContent = '「駅を追加」→マップをクリックして配置';
+}
+
+// Close modal on overlay click
+modalStation.addEventListener('click', e => {
+  if (e.target === modalStation) {
+    modalStation.classList.add('hidden');
+    pendingStation = null;
+    exitPlacingMode();
+  }
+});
+
+// ----------------------------------------------------------------
+// Orientation toggle
+// ----------------------------------------------------------------
+document.getElementById('btn-station-orient').addEventListener('click', () => {
+  if (!selectedStationId) return;
+  const s = state.stations.find(s => s.id === selectedStationId);
+  if (!s) return;
+  s.orientation = s.orientation === 'vertical' ? 'horizontal' : 'vertical';
+  recomputeNodeMap();
+  saveState();
+  renderStationTab();
+  renderMap();
+});
+
+// ----------------------------------------------------------------
+// Delete station
+// ----------------------------------------------------------------
+document.getElementById('btn-delete-station').addEventListener('click', () => {
+  if (!selectedStationId) return;
+  if (!confirm('この駅を削除しますか？')) return;
+  // Remove station (tracks remain as per spec: P2)
+  state.stations = state.stations.filter(s => s.id !== selectedStationId);
+  recomputeNodeMap();
+  saveState();
+  selectStation(null);
+  renderStationTab();
+  renderMap();
+});
+
+// ----------------------------------------------------------------
+// Render station tab list
+// ----------------------------------------------------------------
+function renderStationTab() {
+  const list = document.getElementById('station-list');
+  const emptyMsg = document.getElementById('station-empty-msg');
+
+  if (state.stations.length === 0) {
+    emptyMsg.style.display = '';
+    list.innerHTML = '';
+    list.appendChild(emptyMsg);
+    return;
+  }
+
+  emptyMsg.style.display = 'none';
+  // Rebuild list
+  const fragment = document.createDocumentFragment();
+
+  for (const s of state.stations) {
+    const item = document.createElement('div');
+    item.className = 'station-item' + (s.id === selectedStationId ? ' selected' : '');
+    item.dataset.id = s.id;
+
+    // Icon
+    const icon = document.createElement('div');
+    icon.className = 'station-icon';
+    icon.innerHTML = '<i class="fa-solid fa-location-dot"></i>';
+    item.appendChild(icon);
+
+    // Name input
+    const nameInput = document.createElement('input');
+    nameInput.type        = 'text';
+    nameInput.className   = 'station-name-input';
+    nameInput.value       = s.name;
+    nameInput.placeholder = '駅名';
+    nameInput.addEventListener('change', () => {
+      s.name = nameInput.value.trim() || s.name;
+      saveState();
+      renderMap();
+    });
+    nameInput.addEventListener('click', e => e.stopPropagation());
+    item.appendChild(nameInput);
+
+    // Meta: platforms + orientation
+    const meta = document.createElement('div');
+    meta.className = 'station-meta';
+
+    // Platform count
+    const platSelect = document.createElement('select');
+    platSelect.style.cssText = 'width:58px;font-size:11px;padding:2px 4px';
+    for (let p = 1; p <= 10; p++) {
+      const opt = document.createElement('option');
+      opt.value = p; opt.textContent = `${p}番線`;
+      if (p === s.platforms) opt.selected = true;
+      platSelect.appendChild(opt);
+    }
+    platSelect.addEventListener('change', e => {
+      s.platforms = parseInt(e.target.value);
+      recomputeNodeMap();
+      saveState();
+      renderMap();
+      e.stopPropagation();
+    });
+    platSelect.addEventListener('click', e => e.stopPropagation());
+
+    // Orient badge
+    const orientBadge = document.createElement('span');
+    orientBadge.className = 'badge ' + (s.orientation === 'horizontal' ? 'badge-amber' : 'badge-blue');
+    orientBadge.textContent = s.orientation === 'horizontal' ? '横' : '縦';
+
+    // Edit button
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-sm btn-icon';
+    editBtn.title = '詳細設定';
+    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+    editBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      selectStation(s.id);
+      openStationModal(s.id);
+    });
+
+    meta.appendChild(platSelect);
+    meta.appendChild(orientBadge);
+    meta.appendChild(editBtn);
+    item.appendChild(meta);
+
+    // Click to select
+    item.addEventListener('click', () => {
+      selectStation(s.id);
+      scrollToStation(s.id);
+    });
+
+    fragment.appendChild(item);
+  }
+
+  list.innerHTML = '';
+  list.appendChild(fragment);
+  list.appendChild(emptyMsg);
+}
+
+function scrollToStation(id) {
+  const s = state.stations.find(s => s.id === id);
+  if (!s) return;
+  const b  = stationBounds(s);
+  const cx = (b.x + b.w / 2) * GRID_PX * state.viewport.zoom + state.viewport.offsetX;
+  const cy = (b.y + b.h / 2) * GRID_PX * state.viewport.zoom + state.viewport.offsetY;
+  const W  = canvas.width / dpr, H = canvas.height / dpr;
+  state.viewport.offsetX += W / 2 - cx;
+  state.viewport.offsetY += H / 2 - cy;
+  renderMap();
+}
+
+</script>
+
+<script>
+/* ================================================================
+   PART 4: TRACK / WIRING TAB
+================================================================ */
+
+// ----------------------------------------------------------------
+// Track mode buttons
+// ----------------------------------------------------------------
+document.getElementById('btn-track-draw').addEventListener('click', () => {
+  setTrackMode('draw');
+});
+document.getElementById('btn-track-select').addEventListener('click', () => {
+  setTrackMode('select');
+  drawStart = null;
+});
+
+let _trackErrorTimer = null;
+function showTrackError(msg) {
+  const el = document.getElementById('track-error-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+  if (_trackErrorTimer) clearTimeout(_trackErrorTimer);
+  if (msg) _trackErrorTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function setTrackMode(mode) {
+  trackMode = mode;
+  drawStart = null;
+  canvas.classList.remove('mode-draw', 'mode-select');
+  canvas.classList.add('mode-' + mode);
+
+  document.getElementById('btn-track-draw').classList.toggle('active', mode === 'draw');
+  document.getElementById('btn-track-select').classList.toggle('active', mode === 'select');
+  renderMap();
+}
+
+// ----------------------------------------------------------------
+// Travel time input
+// ----------------------------------------------------------------
+document.getElementById('travel-time-input').addEventListener('change', e => {
+  const v = parseFloat(e.target.value);
+  if (v > 0) state.travelTimePerGrid = v;
+  else e.target.value = state.travelTimePerGrid;
+  saveState();
+  renderTrackTab();
+});
+
+// ----------------------------------------------------------------
+// Delete track
+// ----------------------------------------------------------------
+document.getElementById('btn-delete-track').addEventListener('click', () => {
+  if (!selectedTrackId) return;
+  removeTrack(selectedTrackId);
+  selectTrack(null);
+  renderTrackTab();
+  renderMap();
+});
+
+// ----------------------------------------------------------------
+// Render track tab info
+// ----------------------------------------------------------------
+function renderTrackTab() {
+  const info = document.getElementById('track-info');
+  const deleteBtn = document.getElementById('btn-delete-track');
+  deleteBtn.disabled = !selectedTrackId;
+
+  // Update travel time input
+  document.getElementById('travel-time-input').value = state.travelTimePerGrid;
+
+  // Show track count and junction info
+  const junctions = Object.values(nodeMap).filter(n => n.trackIds.length >= 3);
+  let html = `<span class="badge badge-blue">${state.tracks.length} 本の線路</span> `;
+  html += `<span class="badge badge-amber">${junctions.length} 分岐</span>`;
+
+  if (selectedTrackId) {
+    const t = state.tracks.find(t => t.id === selectedTrackId);
+    if (t) {
+      const dist = gridDist(t.x1, t.y1, t.x2, t.y2);
+      const mins = (dist * state.travelTimePerGrid).toFixed(1);
+      html += `<br><span class="text-sm" style="margin-top:4px;display:block">
+        選択中: (${t.x1},${t.y1}) → (${t.x2},${t.y2}) &nbsp;|&nbsp; 
+        所要時間: <strong>${mins}分</strong>
+        ${dist === SQRT2 ? '（斜め）' : ''}
+      </span>`;
+    }
+  }
+
+  if (drawStart) {
+    html += `<br><span class="text-sm" style="margin-top:6px;display:flex;align-items:center;gap:8px;
+      background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:5px 9px">
+      <i class="fa-solid fa-pen" style="color:#2563eb;font-size:11px"></i>
+      <span>始点 <strong>(${drawStart.x}, ${drawStart.y})</strong> — 隣の点をクリックして線路を引く。右クリック/ESCでキャンセル</span>
+      <button class="btn btn-sm" onclick="drawStart=null;showTrackError('');renderMap();renderTrackTab()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </span>`;
+  }
+
+  info.innerHTML = html;
+}
+
+// ----------------------------------------------------------------
+// Keyboard shortcuts
+// ----------------------------------------------------------------
+document.addEventListener('keydown', e => {
+  // Escape: cancel drawing / deselect
+  if (e.key === 'Escape') {
+    drawStart = null;
+    showTrackError('');
+    exitPlacingMode();
+    selectStation(null);
+    selectTrack(null);
+    renderMap();
+    renderTrackTab();
+  }
+  // Delete: remove selected item
+  if ((e.key === 'Delete' || e.key === 'Backspace') &&
+      document.activeElement.tagName !== 'INPUT' &&
+      document.activeElement.tagName !== 'SELECT') {
+    if (selectedTrackId && activeTab === 'track') {
+      removeTrack(selectedTrackId);
+      selectTrack(null);
+      renderTrackTab();
+      renderMap();
+    }
+    if (selectedStationId && activeTab === 'station') {
+      state.stations = state.stations.filter(s => s.id !== selectedStationId);
+      recomputeNodeMap();
+      saveState();
+      selectStation(null);
+      renderStationTab();
+      renderMap();
+    }
+  }
+});
+
+// ----------------------------------------------------------------
+// Context menu: prevent default on canvas (we use right-click for pan)
+// ----------------------------------------------------------------
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (activeTab === 'track' && trackMode === 'draw' && drawStart) {
+    // Right-click cancels current draw
+    drawStart = null;
+    showTrackError('');
+    renderMap();
+    renderTrackTab();
+  }
+});
+
+</script>
+
+<script>
+/* ================================================================
+   PART 5: TIMETABLE (DIAGRAM SETTING) TAB
+================================================================ */
+
+// ----------------------------------------------------------------
+// Train modal helpers
+// ----------------------------------------------------------------
+const modalTrain = document.getElementById('modal-train');
+
+function openTrainModal(trainId) {
+  const nameInput   = document.getElementById('modal-train-name');
+  const colorInput  = document.getElementById('modal-train-color');
+  const originSel   = document.getElementById('modal-train-origin');
+  const repeatH     = document.getElementById('modal-train-repeat-h');
+  const repeatM     = document.getElementById('modal-train-repeat-m');
+
+  // Populate repeat hour/min dropdowns
+  populateTimeSelect(repeatH, 23);
+  populateTimeSelect(repeatM, 59, 1);
+
+  // Populate origin station dropdown
+  originSel.innerHTML = '<option value="">-- 始発駅を選択 --</option>';
+  for (const s of state.stations) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.name;
+    originSel.appendChild(opt);
+  }
+
+  if (trainId) {
+    const tr = state.trains.find(t => t.id === trainId);
+    if (!tr) return;
+    nameInput.value        = tr.name;
+    colorInput.value       = tr.color;
+    originSel.value        = tr.originStationId || '';
+    repeatH.value          = Math.floor((tr.repeatInterval || 60) / 60);
+    repeatM.value          = (tr.repeatInterval || 60) % 60;
+    modalTrain._editId     = trainId;
+  } else {
+    nameInput.value        = `列車${state.trains.length + 1}`;
+    colorInput.value       = TRAIN_COLORS[state.trains.length % TRAIN_COLORS.length];
+    originSel.value        = state.stations[0]?.id || '';
+    repeatH.value          = 1;
+    repeatM.value          = 0;
+    modalTrain._editId     = null;
+  }
+
+  modalTrain.classList.remove('hidden');
+  nameInput.focus();
+}
+
+document.getElementById('modal-train-ok').addEventListener('click', () => {
+  const name     = document.getElementById('modal-train-name').value.trim();
+  const color    = document.getElementById('modal-train-color').value;
+  const originId = document.getElementById('modal-train-origin').value;
+  const rh       = parseInt(document.getElementById('modal-train-repeat-h').value) || 0;
+  const rm       = parseInt(document.getElementById('modal-train-repeat-m').value) || 0;
+  const interval = rh * 60 + rm;
+
+  if (!originId) { alert('始発駅を選択してください。'); return; }
+  if (!name)     { alert('列車名を入力してください。'); return; }
+
+  if (modalTrain._editId) {
+    const tr = state.trains.find(t => t.id === modalTrain._editId);
+    if (tr) {
+      tr.name           = name;
+      tr.color          = color;
+      tr.originStationId = originId;
+      tr.repeatInterval = Math.max(1, interval);
+    }
+  } else {
+    const id = addTrain(name, color, originId, Math.max(1, interval));
+    // Build default stops for the new train
+    const newTrain = state.trains.find(t => t.id === id);
+    if (newTrain) {
+      newTrain.stops = buildDefaultStops(newTrain);
+    }
+    selectedTrainId = id;
+  }
+
+  saveState();
+  modalTrain.classList.add('hidden');
+  renderTrainList();
+  renderScheduleEditor();
+  renderMap();
+});
+
+document.getElementById('modal-train-cancel').addEventListener('click', () => {
+  modalTrain.classList.add('hidden');
+});
+modalTrain.addEventListener('click', e => {
+  if (e.target === modalTrain) modalTrain.classList.add('hidden');
+});
+
+// ----------------------------------------------------------------
+// Add / Delete train buttons
+// ----------------------------------------------------------------
+document.getElementById('btn-add-train').addEventListener('click', () => {
+  if (state.stations.length === 0) {
+    alert('先に駅を配置してください。');
+    return;
+  }
+  openTrainModal(null);
+});
+
+document.getElementById('btn-delete-train').addEventListener('click', () => {
+  if (!selectedTrainId) return;
+  if (!confirm('この列車を削除しますか？')) return;
+  removeTrain(selectedTrainId);
+  selectedTrainId = null;
+  document.getElementById('btn-delete-train').disabled = true;
+  renderTrainList();
+  renderScheduleEditor();
+  renderMap();
+});
+
+// ----------------------------------------------------------------
+// Train list
+// ----------------------------------------------------------------
+function renderTrainList() {
+  const list     = document.getElementById('train-list');
+  const emptyMsg = document.getElementById('train-empty-msg');
+  const delBtn   = document.getElementById('btn-delete-train');
+
+  list.innerHTML = '';
+  delBtn.disabled = !selectedTrainId;
+
+  if (state.trains.length === 0) {
+    list.appendChild(emptyMsg);
+    emptyMsg.style.display = '';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  for (const tr of state.trains) {
+    const item = document.createElement('div');
+    item.className = 'train-item' + (tr.id === selectedTrainId ? ' selected' : '');
+
+    const swatch = document.createElement('div');
+    swatch.className = 'train-color-swatch';
+    swatch.style.background = tr.color;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className   = 'train-name';
+    nameSpan.textContent = tr.name;
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-sm btn-icon';
+    editBtn.title     = '設定';
+    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+    editBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      openTrainModal(tr.id);
+    });
+
+    item.appendChild(swatch);
+    item.appendChild(nameSpan);
+    item.appendChild(editBtn);
+
+    item.addEventListener('click', () => {
+      selectedTrainId = tr.id;
+      delBtn.disabled = false;
+      renderTrainList();
+      renderScheduleEditor();
+      renderMap();
+    });
+
+    list.appendChild(item);
+  }
+}
+
+// ----------------------------------------------------------------
+// Schedule editor (right pane)
+// ----------------------------------------------------------------
+function renderScheduleEditor() {
+  const editor  = document.getElementById('schedule-editor');
+  const emptyMsg = document.getElementById('tt-empty-msg');
+
+  if (!selectedTrainId) {
+    editor.innerHTML   = '';
+    emptyMsg.style.display = '';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  const train = state.trains.find(t => t.id === selectedTrainId);
+  if (!train) { editor.innerHTML = ''; return; }
+
+  // Rebuild route from junction choices in stops
+  const jChoices = getJunctionChoicesFromStops(train.stops);
+  const route    = buildFullRoute(train, jChoices);
+
+  // Sync stops to route
+  syncStopsToRoute(train, route);
+
+  // Render
+  editor.innerHTML = '';
+
+  // Header (train color + interval info)
+  const header = document.createElement('div');
+  header.className = 'sched-header';
+  header.innerHTML = `
+    <span style="display:inline-block;width:13px;height:13px;
+      border-radius:50%;background:${train.color};flex-shrink:0"></span>
+    <strong>${train.name}</strong>
+    <span class="badge badge-gray">
+      <i class="fa-solid fa-rotate"></i>
+      ${fmtTime(train.repeatInterval)}間隔で繰り返し
+    </span>
+  `;
+  editor.appendChild(header);
+
+  if (route.length === 0) {
+    editor.innerHTML += `<p class="text-muted mt-2">
+      始発駅から先の路線が見つかりません。配線タブで線路を引いてください。
+    </p>`;
+    return;
+  }
+
+  // Stop list
+  const list = document.createElement('div');
+  list.className = 'sched-list';
+
+  for (let i = 0; i < route.length; i++) {
+    const node  = route[i];
+    const isLast = i === route.length - 1;
+
+    const row = document.createElement('div');
+    row.className = 'sched-row';
+
+    // Left column: dot + vertical line
+    const lineCol = document.createElement('div');
+    lineCol.className = 'sched-line-col';
+
+    const dot = document.createElement('div');
+    dot.className = 'sched-dot ' +
+      (node.type === 'station'  ? (i === 0 || isLast ? 'endpoint' : 'station') :
+       node.type === 'junction' ? 'junction' : 'endpoint');
+
+    dot.innerHTML = node.type === 'station'
+      ? '<i class="fa-solid fa-circle-dot" style="font-size:8px"></i>'
+      : '<i class="fa-solid fa-code-branch" style="font-size:8px"></i>';
+
+    lineCol.appendChild(dot);
+    if (!isLast) {
+      const vline = document.createElement('div');
+      vline.className = 'sched-vline';
+      lineCol.appendChild(vline);
+    }
+    row.appendChild(lineCol);
+
+    // Right column: content
+    const content = document.createElement('div');
+    content.className = 'sched-content';
+
+    if (node.type === 'station') {
+      renderStationStop(content, train, node, i, isLast, route);
+    } else if (node.type === 'junction') {
+      renderJunctionStop(content, train, node, i, route);
+    }
+
+    row.appendChild(content);
+    list.appendChild(row);
+
+    // Travel time to next node
+    if (!isLast) {
+      const travelRow = buildTravelTimeRow(route[i], route[i + 1]);
+      list.appendChild(travelRow);
+    }
+  }
+
+  editor.appendChild(list);
+}
+
+// ----------------------------------------------------------------
+// Station stop render
+// ----------------------------------------------------------------
+function renderStationStop(container, train, node, idx, isLast, route) {
+  const stop = findOrCreateStop(train, node);
+  const s    = state.stations.find(st => st.id === node.stationId);
+  if (!s) return;
+
+  // Platform info
+  const platformLabel = node.platformIndex != null
+    ? `${node.platformIndex + 1}番線` : '—';
+
+  // Direction badge
+  let dirBadge = '';
+  if (idx === 0) {
+    dirBadge = '<span class="badge badge-green"><i class="fa-solid fa-arrow-right"></i> 出発</span>';
+  } else if (isLast) {
+    dirBadge = '<span class="badge badge-green"><i class="fa-solid fa-rotate-left"></i> 折り返し</span>';
+  }
+
+  // Title
+  const title = document.createElement('div');
+  title.className = 'sched-title';
+  title.innerHTML = `
+    <i class="fa-solid fa-location-dot" style="color:#2563eb;font-size:12px"></i>
+    ${s.name}
+    ${dirBadge}
+    <span class="badge ${stop.stopMode === 'stop' ? 'badge-blue' : 'badge-gray'}">
+      ${stop.stopMode === 'stop' ? '停車' : '通過'}
+    </span>
+    <small style="color:#9ca3af;font-weight:400">${platformLabel}</small>
+  `;
+  container.appendChild(title);
+
+  // Fields
+  const fields = document.createElement('div');
+  fields.className = 'sched-fields';
+
+  // Stop/Pass toggle
+  if (idx > 0 && !isLast) {
+    const stopPassField = document.createElement('div');
+    stopPassField.className = 'sched-field';
+    stopPassField.innerHTML = '<label>種別:</label>';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'width:62px;font-size:11px;padding:2px 4px';
+    ['stop','pass'].forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v === 'stop' ? '停車' : '通過';
+      if (stop.stopMode === v) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      stop.stopMode = sel.value;
+      if (stop.stopMode === 'pass') stop.departureTime = stop.arrivalTime;
+      saveState();
+      renderScheduleEditor();
+      renderMap();
+    });
+    stopPassField.appendChild(sel);
+    fields.appendChild(stopPassField);
+  }
+
+  // Arrival time (not first station)
+  if (idx > 0) {
+    fields.appendChild(buildTimeField('着', stop.arrivalTime, v => {
+      stop.arrivalTime = v;
+      if (stop.stopMode !== 'stop') stop.departureTime = v;
+      saveState();
+      renderScheduleEditor();
+    }));
+  }
+
+  // Departure time (not passing, not last)
+  if (stop.stopMode === 'stop' && !isLast) {
+    fields.appendChild(buildTimeField('発', stop.departureTime, v => {
+      stop.departureTime = v;
+      saveState();
+      renderScheduleEditor();
+    }));
+  } else if (isLast) {
+    fields.appendChild(buildTimeField('折返し発', stop.departureTime, v => {
+      stop.departureTime = v;
+      // Update repeat interval suggestion
+      if (idx > 0) {
+        const firstStop = findStopAtIndex(train, 0);
+        if (firstStop) {
+          const suggested = stop.departureTime - firstStop.arrivalTime;
+          if (suggested > 0) {
+            // Gentle hint – don't override user setting
+          }
+        }
+      }
+      saveState();
+      renderScheduleEditor();
+    }));
+  }
+
+  container.appendChild(fields);
+}
+
+// ----------------------------------------------------------------
+// Junction stop render
+// ----------------------------------------------------------------
+function renderJunctionStop(container, train, node, idx, route) {
+  const stop = findOrCreateStop(train, node);
+
+  const n = nodeMap[node.nodeKey];
+  const exits = n ? n.trackIds.length - 1 : 0;
+
+  const title = document.createElement('div');
+  title.className = 'sched-title';
+  title.innerHTML = `
+    <i class="fa-solid fa-code-branch" style="color:#f59e0b;font-size:12px"></i>
+    分岐点 (${node.x}, ${node.y})
+    <span class="badge badge-amber">分岐</span>
+  `;
+  container.appendChild(title);
+
+  const fields = document.createElement('div');
+  fields.className = 'sched-fields';
+
+  // Arrival time
+  fields.appendChild(buildTimeField('着', stop.arrivalTime, v => {
+    stop.arrivalTime = v;
+    saveState();
+    renderScheduleEditor();
+  }));
+
+  // Direction choice
+  // Compute which tracks leave this junction (excluding the incoming one)
+  const dirField = document.createElement('div');
+  dirField.className = 'sched-field';
+  dirField.innerHTML = '<label>進行方向:</label>';
+
+  const dirSel = document.createElement('select');
+  dirSel.style.cssText = 'font-size:11px;padding:2px 4px;max-width:130px';
+
+  // Find exits from junction
+  const prevNode = idx > 0 ? route[idx - 1] : null;
+  const incomingTrackId = prevNode ? getTrackBetween(prevNode, node) : null;
+  const availExits      = incomingTrackId
+    ? getExits(node.x, node.y, incomingTrackId)
+    : (n ? n.trackIds.map(tid => {
+        const t = state.tracks.find(tr => tr.id === tid);
+        if (!t) return null;
+        return { trackId: tid,
+          toX: t.x1 === node.x && t.y1 === node.y ? t.x2 : t.x1,
+          toY: t.x1 === node.x && t.y1 === node.y ? t.y2 : t.y1 };
+      }).filter(Boolean) : []);
+
+  // Find straight exit
+  let straightExit = null;
+  if (prevNode && incomingTrackId) {
+    const prevTrack = state.tracks.find(tr => tr.id === incomingTrackId);
+    if (prevTrack) {
+      const fromX = prevTrack.x1 === node.x && prevTrack.y1 === node.y ? prevTrack.x2 : prevTrack.x1;
+      const fromY = prevTrack.y1 === node.y ? prevTrack.y2 : prevTrack.y1;
+      straightExit = getStraightExit(fromX, fromY, node.x, node.y, availExits);
+    }
+  }
+
+  availExits.forEach((ex, ei) => {
+    const isStraight = ex === straightExit;
+    const opt = document.createElement('option');
+    opt.value = isStraight ? 'straight' : `branch_${ei}`;
+    opt.textContent = isStraight
+      ? `直進 → (${ex.toX},${ex.toY})`
+      : `分岐 → (${ex.toX},${ex.toY})`;
+    if (stop.direction === opt.value || (!stop.direction && isStraight)) opt.selected = true;
+    dirSel.appendChild(opt);
+  });
+
+  dirSel.addEventListener('change', () => {
+    stop.direction = dirSel.value;
+    saveState();
+    renderScheduleEditor();
+    renderMap();
+  });
+
+  dirField.appendChild(dirSel);
+  fields.appendChild(dirField);
+  container.appendChild(fields);
+}
+
+// ----------------------------------------------------------------
+// Time field builder
+// ----------------------------------------------------------------
+function buildTimeField(label, value, onChange) {
+  const field = document.createElement('div');
+  field.className = 'sched-field';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label + ':';
+  field.appendChild(lbl);
+
+  const group = document.createElement('div');
+  group.className = 'time-input-group';
+
+  const hSel = document.createElement('select');
+  hSel.style.cssText = 'width:52px;font-size:11px;padding:2px 4px';
+  const mSel = document.createElement('select');
+  mSel.style.cssText = 'width:52px;font-size:11px;padding:2px 4px';
+
+  populateTimeSelect(hSel, 47);
+  populateTimeSelect(mSel, 59);
+
+  const totalMin = value || 0;
+  hSel.value = Math.floor(totalMin / 60);
+  mSel.value = totalMin % 60;
+
+  const update = () => {
+    const v = parseInt(hSel.value) * 60 + parseInt(mSel.value);
+    onChange(v);
+  };
+  hSel.addEventListener('change', update);
+  mSel.addEventListener('change', update);
+
+  const colon = document.createElement('span');
+  colon.textContent = ':';
+  colon.style.fontWeight = '700';
+
+  group.appendChild(hSel);
+  group.appendChild(colon);
+  group.appendChild(mSel);
+  field.appendChild(group);
+  return field;
+}
+
+// ----------------------------------------------------------------
+// Travel time row between nodes
+// ----------------------------------------------------------------
+function buildTravelTimeRow(fromNode, toNode) {
+  const row = document.createElement('div');
+  row.className = 'sched-row';
+  row.style.marginBottom = '2px';
+
+  const lineCol = document.createElement('div');
+  lineCol.className = 'sched-line-col';
+  const vline = document.createElement('div');
+  vline.className = 'sched-vline';
+  lineCol.appendChild(vline);
+  row.appendChild(lineCol);
+
+  const content = document.createElement('div');
+  content.style.cssText = 'flex:1;padding:0 0 2px 8px;display:flex;align-items:center;gap:6px';
+
+  // Compute travel time
+  const track = state.tracks.find(tr =>
+    ((tr.x1 === fromNode.x && tr.y1 === fromNode.y && tr.x2 === toNode.x && tr.y2 === toNode.y) ||
+     (tr.x2 === fromNode.x && tr.y2 === fromNode.y && tr.x1 === toNode.x && tr.y1 === toNode.y))
+  );
+  const mins = track
+    ? trackTravelTime(track).toFixed(1)
+    : (gridDist(fromNode.x, fromNode.y, toNode.x, toNode.y) * state.travelTimePerGrid).toFixed(1);
+
+  content.innerHTML = `
+    <i class="fa-solid fa-arrow-down" style="color:#9ca3af;font-size:10px"></i>
+    <span class="text-muted" style="font-size:11px">所要時間: <strong>${mins}分</strong></span>
+  `;
+  row.appendChild(content);
+  return row;
+}
+
+// ----------------------------------------------------------------
+// Route building helpers
+// ----------------------------------------------------------------
+
+/**
+ * Build the full ordered route for a train (outbound + inbound).
+ * Returns flat array of {type, x, y, stationId?, nodeKey, platformIndex?}
+ */
+function buildFullRoute(train, jChoices) {
+  if (!train.originStationId) return [];
+
+  const originStation = state.stations.find(s => s.id === train.originStationId);
+  if (!originStation) return [];
+
+  // Find an endpoint of the origin station that has a track attached
+  const eps = stationEndpoints(originStation);
+  let startEp = null;
+  for (const ep of eps) {
+    const n = nodeMap[nk(ep.x, ep.y)];
+    if (n && n.trackIds.length > 0) { startEp = ep; break; }
+  }
+  if (!startEp) {
+    // No tracks from origin – just return origin
+    return [{ type: 'station', x: originStation.gridX, y: originStation.gridY,
+              stationId: originStation.id, nodeKey: nk(originStation.gridX, originStation.gridY),
+              platformIndex: 0 }];
+  }
+
+  // Trace outbound route
+  const outbound = traceRoute(startEp.x, startEp.y, null, jChoices, originStation.id);
+
+  // For inbound (return trip), trace from last station back
+  const lastNode = outbound[outbound.length - 1];
+  let inbound = [];
+  if (lastNode && lastNode.type === 'station' && lastNode.stationId !== train.originStationId) {
+    const lastSt = state.stations.find(s => s.id === lastNode.stationId);
+    if (lastSt) {
+      const returnEps = stationEndpoints(lastSt);
+      let returnStartEp = null;
+      for (const ep of returnEps) {
+        const n = nodeMap[nk(ep.x, ep.y)];
+        if (n && n.trackIds.length > 0) { returnStartEp = ep; break; }
+      }
+      if (returnStartEp) {
+        // Trace return route (junctions reversed)
+        const revChoices = reverseJunctionChoices(jChoices);
+        inbound = traceRoute(returnStartEp.x, returnStartEp.y, null, revChoices, lastSt.id);
+        // Tag inbound nodes
+        inbound = inbound.map(n => ({ ...n, inbound: true }));
+      }
+    }
+  }
+
+  return [...outbound, ...inbound];
+}
+
+/**
+ * Trace a route from (startX, startY) until a dead end or station.
+ * Returns array of route nodes (includes the starting station node).
+ */
+function traceRoute(startX, startY, prevTrackId, jChoices, startStationId) {
+  const nodes = [];
+  const visited = new Set();
+
+  // Determine the platform index for a station endpoint
+  function getPlatformIndex(x, y, stId) {
+    const s = state.stations.find(s => s.id === stId);
+    if (!s) return 0;
+    const ep = stationEndpoints(s).find(e => e.x === x && e.y === y);
+    return ep ? ep.platformIndex : 0;
+  }
+
+  // Push starting station
+  nodes.push({
+    type: 'station',
+    x: startX, y: startY,
+    stationId: startStationId,
+    nodeKey: nk(startX, startY),
+    platformIndex: getPlatformIndex(startX, startY, startStationId),
+  });
+
+  // Move off the starting endpoint
+  const startNode = nodeMap[nk(startX, startY)];
+  if (!startNode || startNode.trackIds.length === 0) return nodes;
+
+  const firstTrackId = prevTrackId
+    ? startNode.trackIds.find(id => id !== prevTrackId)
+    : startNode.trackIds[0];
+  if (!firstTrackId) return nodes;
+
+  const firstTrack = state.tracks.find(t => t.id === firstTrackId);
+  if (!firstTrack) return nodes;
+
+  const ft_forward = (firstTrack.x1 === startX && firstTrack.y1 === startY);
+  let curX = ft_forward ? firstTrack.x2 : firstTrack.x1;
+  let curY = ft_forward ? firstTrack.y2 : firstTrack.y1;
+  let incomingTrackId = firstTrackId;
+
+  for (let safety = 0; safety < 500; safety++) {
+    const key = nk(curX, curY);
+    if (visited.has(key)) break;
+    visited.add(key);
+
+    // Is it a station endpoint?
+    const atStation = stationAtEndpoint(curX, curY);
+    if (atStation && atStation.id !== startStationId) {
+      nodes.push({
+        type: 'station',
+        x: curX, y: curY,
+        stationId: atStation.id,
+        nodeKey: key,
+        platformIndex: getPlatformIndex(curX, curY, atStation.id),
+      });
+      break;
+    }
+
+    const exits = getExits(curX, curY, incomingTrackId);
+
+    if (exits.length === 0) {
+      // Dead end (not a station)
+      nodes.push({ type: 'endpoint', x: curX, y: curY, nodeKey: key });
+      break;
+    }
+
+    if (exits.length === 1) {
+      // Simple passthrough
+      const ex = exits[0];
+      incomingTrackId = ex.trackId;
+      curX = ex.toX; curY = ex.toY;
+    } else {
+      // Junction: record it and choose direction
+      nodes.push({ type: 'junction', x: curX, y: curY, nodeKey: key });
+
+      const chosen = chooseJunctionExit(curX, curY, incomingTrackId, exits, jChoices[key] || 'straight');
+      if (!chosen) break;
+      incomingTrackId = chosen.trackId;
+      curX = chosen.toX; curY = chosen.toY;
+    }
+  }
+
+  return nodes;
+}
+
+function chooseJunctionExit(curX, curY, incomingTrackId, exits, choice) {
+  const prevTrack = state.tracks.find(t => t.id === incomingTrackId);
+  if (!prevTrack) return exits[0];
+  const fromX = prevTrack.x1 === curX && prevTrack.y1 === curY ? prevTrack.x2 : prevTrack.x1;
+  const fromY = prevTrack.x1 === curX && prevTrack.y1 === curY ? prevTrack.y2 : prevTrack.y1;
+
+  const straight = getStraightExit(fromX, fromY, curX, curY, exits);
+
+  if (choice === 'straight') return straight || exits[0];
+  // Branch: any exit that is NOT straight
+  const branch = exits.find(ex => ex !== straight);
+  return branch || exits[0];
+}
+
+function reverseJunctionChoices(jChoices) {
+  // On return trip, 'straight' remains 'straight', branches swap
+  // (simple heuristic: keep same choices)
+  return { ...jChoices };
+}
+
+// ----------------------------------------------------------------
+// Stop CRUD helpers
+// ----------------------------------------------------------------
+function findOrCreateStop(train, node) {
+  let stop = train.stops.find(s =>
+    s.type === node.type &&
+    (node.type === 'station' ? s.stationId === node.stationId : s.nodeKey === node.nodeKey)
+  );
+  if (!stop) {
+    stop = node.type === 'station'
+      ? { type: 'station', stationId: node.stationId,
+          stopMode: 'stop', arrivalTime: 0, departureTime: 3,
+          platform: node.platformIndex || 0 }
+      : { type: 'junction', nodeKey: node.nodeKey,
+          arrivalTime: 0, direction: 'straight' };
+    train.stops.push(stop);
+    saveState();
+  }
+  return stop;
+}
+
+function findStopAtIndex(train, idx) {
+  const jChoices = getJunctionChoicesFromStops(train.stops);
+  const route    = buildFullRoute(train, jChoices);
+  if (!route[idx]) return null;
+  return findOrCreateStop(train, route[idx]);
+}
+
+function getJunctionChoicesFromStops(stops) {
+  const choices = {};
+  for (const s of stops) {
+    if (s.type === 'junction') choices[s.nodeKey] = s.direction || 'straight';
+  }
+  return choices;
+}
+
+/**
+ * Sync train.stops array to match current route:
+ * - Remove orphaned stops
+ * - Keep existing stops that match route nodes
+ * - Auto-fill times based on travel time
+ */
+function syncStopsToRoute(train, route) {
+  const synced = [];
+  let timeCursor = 0;
+
+  for (let i = 0; i < route.length; i++) {
+    const node = route[i];
+    const existing = train.stops.find(s =>
+      s.type === node.type &&
+      (node.type === 'station' ? s.stationId === node.stationId : s.nodeKey === node.nodeKey)
+    );
+
+    if (node.type === 'station') {
+      if (existing) {
+        // Preserve but ensure arrival >= timeCursor
+        if (i > 0 && existing.arrivalTime < timeCursor) {
+          existing.arrivalTime  = Math.round(timeCursor);
+          if (existing.departureTime < existing.arrivalTime)
+            existing.departureTime = existing.arrivalTime + 3;
+        }
+        timeCursor = existing.departureTime || existing.arrivalTime;
+        synced.push(existing);
+      } else {
+        const arr = Math.round(timeCursor);
+        const dep = i === route.length - 1 ? arr + 5 : arr + 3;
+        const stop = {
+          type: 'station', stationId: node.stationId,
+          stopMode: 'stop',
+          arrivalTime: arr, departureTime: dep,
+          platform: node.platformIndex || 0,
+        };
+        synced.push(stop);
+        timeCursor = dep;
+      }
+    } else if (node.type === 'junction') {
+      if (existing) {
+        if (existing.arrivalTime < timeCursor) existing.arrivalTime = Math.round(timeCursor);
+        synced.push(existing);
+        timeCursor = existing.arrivalTime;
+      } else {
+        const stop = {
+          type: 'junction', nodeKey: node.nodeKey,
+          arrivalTime: Math.round(timeCursor), direction: 'straight',
+        };
+        synced.push(stop);
+      }
+    }
+
+    // Add travel time to next node
+    if (i < route.length - 1) {
+      const next = route[i + 1];
+      const track = state.tracks.find(tr =>
+        ((tr.x1 === node.x && tr.y1 === node.y && tr.x2 === next.x && tr.y2 === next.y) ||
+         (tr.x2 === node.x && tr.y2 === node.y && tr.x1 === next.x && tr.y1 === next.y))
+      );
+      const mins = track
+        ? trackTravelTime(track)
+        : gridDist(node.x, node.y, next.x, next.y) * state.travelTimePerGrid;
+      timeCursor += mins;
+    }
+  }
+
+  train.stops = synced;
+}
+
+/**
+ * Get the track ID between two adjacent route nodes.
+ */
+function getTrackBetween(nodeA, nodeB) {
+  const t = state.tracks.find(tr =>
+    ((tr.x1 === nodeA.x && tr.y1 === nodeA.y && tr.x2 === nodeB.x && tr.y2 === nodeB.y) ||
+     (tr.x2 === nodeA.x && tr.y2 === nodeA.y && tr.x1 === nodeB.x && tr.y1 === nodeB.y))
+  );
+  return t ? t.id : null;
+}
+
+</script>
+
+<script>
+/* ================================================================
+   PART 6: SIMULATION ENGINE
+================================================================ */
+
+// ----------------------------------------------------------------
+// Simulation state per active train instance
+// ----------------------------------------------------------------
+// Each instance:
+// {
+//   trainId, instanceIndex,
+//   cycleStart: minutes (departure time of first stop in this cycle),
+//   phase: 'outbound'|'inbound'|'waiting',
+//   routeNodes: [...],  // flattened route
+//   segmentIndex: 0,    // index into routeSegments
+//   routeSegments: [{fromNode, toNode, departMinute, arriveMinute}],
+//   posGX, posGY,       // current grid position (float)
+//   status: 'running'|'waiting'|'stopped',
+//   statusText: '',
+//   nextStopName: '',
+// }
+
+let simInstances = [];
+
+// ----------------------------------------------------------------
+// Setup simulation
+// ----------------------------------------------------------------
+function setupSimulation() {
+  simInstances = [];
+
+  for (const train of state.trains) {
+    const jChoices = getJunctionChoicesFromStops(train.stops);
+    const route    = buildFullRoute(train, jChoices);
+    if (!route.length) continue;
+
+    // Build segments from stops
+    const segments = buildRouteSegments(train, route);
+    if (!segments.length) continue;
+
+    // One instance per train (it will repeat)
+    simInstances.push({
+      trainId:       train.id,
+      route,
+      segments,
+      jChoices,
+      cycleOffset:   0,  // minutes offset for this cycle
+      status:        'waiting',
+      statusText:    '開始前',
+      nextStopName:  '',
+      posGX:         route[0].x,
+      posGY:         route[0].y,
+    });
+  }
+}
+
+/**
+ * Build flat segment list:
+ * [{ fromX, fromY, toX, toY, depart, arrive }]
+ * depart / arrive are in minutes from midnight.
+ */
+function buildRouteSegments(train, route) {
+  if (!train.stops.length) return [];
+
+  const segments = [];
+
+  for (let i = 0; i + 1 < route.length; i++) {
+    const nodeA = route[i];
+    const nodeB = route[i + 1];
+
+    const stopA = train.stops.find(s =>
+      s.type === nodeA.type &&
+      (nodeA.type === 'station' ? s.stationId === nodeA.stationId : s.nodeKey === nodeA.nodeKey)
+    );
+    const stopB = train.stops.find(s =>
+      s.type === nodeB.type &&
+      (nodeB.type === 'station' ? s.stationId === nodeB.stationId : s.nodeKey === nodeB.nodeKey)
+    );
+
+    if (!stopA || !stopB) continue;
+
+    const depart  = (stopA.type === 'station' && stopA.stopMode === 'stop')
+      ? (stopA.departureTime ?? stopA.arrivalTime)
+      : stopA.arrivalTime;
+    const arrive  = stopB.arrivalTime;
+
+    segments.push({
+      fromX: nodeA.x, fromY: nodeA.y,
+      toX:   nodeB.x, toY:   nodeB.y,
+      depart, arrive,
+    });
+  }
+  return segments;
+}
+
+// ----------------------------------------------------------------
+// Tick: advance simulation by deltaSeconds
+// ----------------------------------------------------------------
+function tickSimulation(deltaSeconds) {
+  if (!state.sim.running) return;
+
+  const deltaMins   = (deltaSeconds * state.sim.speed) / 60;
+  state.sim.currentTime += deltaSeconds * state.sim.speed;
+
+  // Wrap at 48h
+  if (state.sim.currentTime > 48 * 3600) state.sim.currentTime -= 48 * 3600;
+
+  const nowMin = state.sim.currentTime / 60;
+
+  // Update each instance
+  for (const inst of simInstances) {
+    updateInstance(inst, nowMin);
+  }
+
+  trainPositions = simInstances
+    .filter(inst => inst.status !== 'waiting' || inst.visible)
+    .map(inst => {
+      const train = state.trains.find(t => t.id === inst.trainId);
+      return {
+        trainId:   inst.trainId,
+        gx:        inst.posGX,
+        gy:        inst.posGY,
+        color:     train ? train.color : '#888',
+        name:      train ? train.name : '',
+        status:    inst.status,
+      };
+    });
+
+  updateSimUI(nowMin);
+  renderMap();
+}
+
+/**
+ * Get the dwell period [arriveMin, departMin] for the TO node of a segment.
+ */
+function segmentDwell(train, seg) {
+  const stop = train.stops.find(s => {
+    if (s.type === 'station') {
+      const st = state.stations.find(st2 => st2.id === s.stationId);
+      if (!st) return false;
+      const eps = stationEndpoints(st);
+      return eps.some(ep => ep.x === seg.toX && ep.y === seg.toY);
+    }
+    if (s.type === 'junction') {
+      const { x, y } = parseNk(s.nodeKey);
+      return x === seg.toX && y === seg.toY;
+    }
+    return false;
+  });
+  if (!stop) return null;
+  const arr = stop.arrivalTime ?? seg.arrive;
+  const dep = stop.type === 'station' && stop.stopMode === 'stop'
+    ? (stop.departureTime ?? arr) : arr;
+  return { arr, dep };
+}
+
+/**
+ * Update a single train instance position at nowMin.
+ * Handles repeating by computing effective time within the cycle.
+ */
+function updateInstance(inst, nowMin) {
+  const train = state.trains.find(t => t.id === inst.trainId);
+  if (!train || !inst.segments.length) return;
+
+  const cycleLen   = train.repeatInterval; // minutes
+  const firstDepart = inst.segments[0].depart;
+  const lastArrive  = inst.segments[inst.segments.length - 1].arrive;
+
+  // Determine current cycle index
+  const elapsed    = nowMin - firstDepart;
+  let   cycleIndex = 0;
+  let   cycleTime  = nowMin;
+
+  if (elapsed >= 0) {
+    cycleIndex = Math.floor(elapsed / cycleLen);
+    cycleTime  = firstDepart + (elapsed % cycleLen);
+  }
+
+  inst.cycleIndex = cycleIndex;
+
+  // Find which segment we're in
+  const lastStop = train.stops[train.stops.length - 1];
+  const lastDep  = (lastStop && lastStop.departureTime != null) ? lastStop.departureTime : lastArrive;
+
+  // In-transit?
+  for (const seg of inst.segments) {
+    if (cycleTime >= seg.depart && cycleTime <= seg.arrive) {
+      // Interpolate position
+      const t   = seg.arrive > seg.depart
+        ? (cycleTime - seg.depart) / (seg.arrive - seg.depart)
+        : 1;
+      inst.posGX  = seg.fromX + (seg.toX - seg.fromX) * t;
+      inst.posGY  = seg.fromY + (seg.toY - seg.fromY) * t;
+      inst.status = 'running';
+      inst.visible = true;
+
+      // Next stop name
+      const routeNode = inst.route.find(n => n.x === seg.toX && n.y === seg.toY);
+      if (routeNode && routeNode.type === 'station') {
+        const st = state.stations.find(s => s.id === routeNode.stationId);
+        inst.nextStopName = st ? st.name : '';
+      }
+      inst.statusText = '走行中';
+      return;
+    }
+  }
+
+  // Dwelling at a station/junction?
+  for (const seg of inst.segments) {
+    const dwell = segmentDwell(train, seg);
+    if (dwell && cycleTime >= dwell.arr && cycleTime < dwell.dep) {
+      inst.posGX  = seg.toX;
+      inst.posGY  = seg.toY;
+      inst.status = 'stopped';
+      inst.visible = true;
+      const atSt = stationAtEndpoint(seg.toX, seg.toY);
+      inst.statusText = atSt ? `${atSt.name}に停車中` : '停車中';
+      inst.nextStopName = '';
+      return;
+    }
+  }
+
+  // Last station folding dwell
+  const lastSeg   = inst.segments[inst.segments.length - 1];
+  const lastDwell = segmentDwell(train, lastSeg);
+  if (lastDwell && cycleTime >= lastDwell.arr && cycleTime < lastDwell.dep) {
+    inst.posGX   = lastSeg.toX;
+    inst.posGY   = lastSeg.toY;
+    inst.status  = 'stopped';
+    inst.visible  = true;
+    inst.statusText = '折り返し待ち';
+    return;
+  }
+
+  // Waiting (before first departure in this cycle, or after last)
+  if (cycleTime < firstDepart) {
+    inst.posGX   = inst.segments[0].fromX;
+    inst.posGY   = inst.segments[0].fromY;
+    inst.status  = 'waiting';
+    inst.visible  = true;
+    inst.statusText = '発車待ち';
+    inst.nextStopName = '';
+  } else {
+    // After last departure – hide until next cycle
+    inst.visible  = false;
+    inst.status  = 'waiting';
+    inst.statusText = '運行終了';
+  }
+}
+
+// ----------------------------------------------------------------
+// Simulation controls
+// ----------------------------------------------------------------
+function buildSpeedButtons() {
+  const group = document.getElementById('speed-group');
+  group.innerHTML = '';
+  for (const spd of SPEED_STEPS) {
+    const btn = document.createElement('button');
+    btn.className  = 'speed-btn' + (state.sim.speed === spd ? ' active' : '');
+    btn.textContent = `${spd}x`;
+    btn.addEventListener('click', () => {
+      state.sim.speed = spd;
+      document.querySelectorAll('.speed-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent === `${spd}x`);
+      });
+    });
+    group.appendChild(btn);
+  }
+}
+
+// Populate start time selects
+(function initSimTimeSelects() {
+  const h = document.getElementById('sim-start-h');
+  const m = document.getElementById('sim-start-m');
+  populateTimeSelect(h, 47);
+  populateTimeSelect(m, 59);
+  h.value = 0; m.value = 0;
+})();
+
+document.getElementById('btn-set-time').addEventListener('click', () => {
+  const h = parseInt(document.getElementById('sim-start-h').value) || 0;
+  const m = parseInt(document.getElementById('sim-start-m').value) || 0;
+  state.sim.currentTime = (h * 60 + m) * 60;
+  updateSimTimeDisplay();
+  setupSimulation();
+  renderMap();
+  updateSimUI(state.sim.currentTime / 60);
+});
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (!state.sim.running) {
+    state.sim.running = true;
+    state.sim.lastTs  = null;
+    setupSimulation();
+    document.getElementById('btn-play').innerHTML = '<i class="fa-solid fa-pause"></i>';
+    requestAnimationFrame(simLoop);
+  } else {
+    state.sim.running = false;
+    document.getElementById('btn-play').innerHTML = '<i class="fa-solid fa-play"></i>';
+  }
+});
+
+document.getElementById('btn-stop').addEventListener('click', () => {
+  state.sim.running   = false;
+  state.sim.currentTime = 0;
+  trainPositions      = [];
+  simInstances        = [];
+  document.getElementById('btn-play').innerHTML = '<i class="fa-solid fa-play"></i>';
+  updateSimTimeDisplay();
+  renderMap();
+  updateSimUI(0);
+});
+
+// ----------------------------------------------------------------
+// Animation loop
+// ----------------------------------------------------------------
+function simLoop(timestamp) {
+  if (!state.sim.running) return;
+  if (state.sim.lastTs != null) {
+    const delta = (timestamp - state.sim.lastTs) / 1000; // real seconds
+    tickSimulation(Math.min(delta, 0.2)); // cap to avoid jumps
+  }
+  state.sim.lastTs = timestamp;
+  requestAnimationFrame(simLoop);
+}
+
+function updateSimTimeDisplay() {
+  const s = Math.floor(state.sim.currentTime);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  document.getElementById('sim-time-display').textContent =
+    `${h}:${String(m).padStart(2, '0')}`;
+}
+
+// ----------------------------------------------------------------
+// Simulation tab UI table
+// ----------------------------------------------------------------
+function updateSimUI(nowMin) {
+  updateSimTimeDisplay();
+
+  const tbody = document.getElementById('sim-train-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  for (const inst of simInstances) {
+    const train = state.trains.find(t => t.id === inst.trainId);
+    if (!train) continue;
+
+    const tr = document.createElement('tr');
+
+    // Color + name
+    const tdName = document.createElement('td');
+    tdName.innerHTML = `
+      <span style="display:inline-block;width:10px;height:10px;
+        border-radius:50%;background:${train.color};margin-right:5px"></span>
+      ${train.name}
+    `;
+
+    // Status
+    const tdStatus = document.createElement('td');
+    const badge = inst.status === 'running' ? 'badge-blue'
+                : inst.status === 'stopped' ? 'badge-green' : 'badge-gray';
+    tdStatus.innerHTML = `<span class="badge ${badge}">${inst.statusText || '—'}</span>`;
+
+    // Position
+    const tdPos = document.createElement('td');
+    tdPos.textContent = `(${inst.posGX?.toFixed(1)}, ${inst.posGY?.toFixed(1)})`;
+
+    // Next stop
+    const tdNext = document.createElement('td');
+    tdNext.textContent = inst.nextStopName || '—';
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdStatus);
+    tr.appendChild(tdPos);
+    tr.appendChild(tdNext);
+    tbody.appendChild(tr);
+  }
+}
+
+</script>
+
+<script>
+/* ================================================================
+   PART 7: TAB SWITCHING, INIT, INTEGRATION
+================================================================ */
+
+// ----------------------------------------------------------------
+// Tab switching
+// ----------------------------------------------------------------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    setActiveTab(tab);
+  });
+});
+
+function setActiveTab(tab) {
+  activeTab = tab;
+
+  // Tab buttons
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+
+  // Panels
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    const panelTab = p.id.replace('panel-', '');
+    p.classList.toggle('active', panelTab === tab);
+  });
+
+  // Cancel any active modes when switching
+  exitPlacingMode();
+  if (tab !== 'track') { drawStart = null; }
+  selectTrack(null);
+
+  // Tab-specific setup
+  if (tab === 'station') {
+    renderStationTab();
+    canvas.className = '';
+  }
+  if (tab === 'track') {
+    drawStart = null;
+    showTrackError('');
+    renderTrackTab();
+    setTrackMode('draw');
+  }
+  if (tab === 'timetable') {
+    renderTrainList();
+    renderScheduleEditor();
+    canvas.className = '';
+  }
+  if (tab === 'simulation') {
+    buildSpeedButtons();
+    setupSimulation();
+    canvas.className = '';
+    renderMap();
+    updateSimUI(state.sim.currentTime / 60);
+  }
+
+  renderMap();
+}
+
+// ----------------------------------------------------------------
+// INIT
+// ----------------------------------------------------------------
+function init() {
+  // Load from localStorage
+  loadState();
+  recomputeNodeMap();
+
+  // Canvas resize
+  resizeCanvas();
+
+  // Set initial viewport (centered or default)
+  centerViewport();
+
+  // Travel time input sync
+  document.getElementById('travel-time-input').value = state.travelTimePerGrid;
+
+  // Speed buttons
+  buildSpeedButtons();
+
+  // Render first tab (station)
+  renderStationTab();
+  renderMap();
+
+  // Handle orientation / resize changes
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    renderMap();
+  });
+
+  // Bottom panel resize observer (for layout changes)
+  const resizeObs = new ResizeObserver(() => {
+    resizeCanvas();
+    renderMap();
+  });
+  resizeObs.observe(document.getElementById('bottom-panel'));
+
+  // Sync stationCounter to avoid name collisions
+  if (state.stations.length > 0) {
+    const nums = state.stations
+      .map(s => {
+        const m = s.name.match(/^駅(\d+)$/);
+        return m ? parseInt(m[1]) : 0;
+      })
+      .filter(n => n > 0);
+    if (nums.length) stationCounter = Math.max(...nums) + 1;
+  }
+
+  console.log('[RailSim] Initialized.',
+    state.stations.length, 'stations,',
+    state.tracks.length, 'tracks,',
+    state.trains.length, 'trains');
+}
+
+// Run on DOMContentLoaded (already loaded since this is inline)
+init();
+
+</script>
+
+
+</body>
+</html>
