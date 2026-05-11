@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sonora</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563EB">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Sonora">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ===================================================================
+       CSS VARIABLES
+    =================================================================== */
+    :root {
+      --bg:           #FFFFFF;
+      --bg-sub:       #F8FAFC;
+      --bg-hover:     #F1F5F9;
+      --border:       #E2E8F0;
+      --border-light: #F1F5F9;
+      --accent:       #2563EB;
+      --accent-hover: #1D4ED8;
+      --accent-light: #EFF6FF;
+      --accent-mid:   #DBEAFE;
+      --accent-dark:  #1E40AF;
+      --text-primary: #1E293B;
+      --text-secondary:#64748B;
+      --text-muted:   #94A3B8;
+      --danger:       #DC2626;
+      --danger-bg:    #FEF2F2;
+      --danger-border:#FECACA;
+      --success:      #16A34A;
+      --shadow-sm:    0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md:    0 4px 16px rgba(0,0,0,0.10);
+      --shadow-lg:    0 12px 40px rgba(0,0,0,0.15);
+      --r-sm:  6px;
+      --r-md:  10px;
+      --r-lg:  16px;
+      --sidebar-w:    220px;
+      --player-w:     296px;
+      --transition:   0.15s ease;
+    }
+
+    /* ===================================================================
+       RESET & BASE
+    =================================================================== */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { height:100%; }
+    body {
+      height:100%;
+      font-family:'Noto Sans JP', sans-serif;
+      background:var(--bg);
+      color:var(--text-primary);
+      overflow:hidden;
+    }
+    button { font-family:'Noto Sans JP', sans-serif; }
+    input, select, textarea { font-family:'Noto Sans JP', sans-serif; }
+    a { color:inherit; text-decoration:none; }
+    img { display:block; }
+
+    ::-webkit-scrollbar { width:4px; height:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
+
+    /* ===================================================================
+       LAYOUT
+    =================================================================== */
+    .app {
+      display:flex;
+      height:100%;   /* landscape: fills body 100% */
+      overflow:hidden;
+    }
+
+    /* --- Sidebar --- */
+    .sidebar {
+      width:var(--sidebar-w);
+      min-width:var(--sidebar-w);
+      background:var(--bg-sub);
+      border-right:1px solid var(--border);
+      display:flex;
+      flex-direction:column;
+      z-index:10;
+      overflow:hidden;
+    }
+
+    .app-logo {
+      padding:22px 20px 18px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .app-logo h1 {
+      font-family:'Playfair Display', serif;
+      font-size:22px;
+      color:var(--accent);
+      letter-spacing:0.02em;
+    }
+    .app-logo p {
+      font-size:11px;
+      color:var(--text-muted);
+      margin-top:2px;
+    }
+
+    .nav-list {
+      flex:1;
+      padding:14px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+      overflow-y:auto;
+    }
+    .nav-item {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:11px 14px;
+      border-radius:var(--r-sm);
+      cursor:pointer;
+      color:var(--text-secondary);
+      font-size:14px;
+      border:none;
+      background:none;
+      width:100%;
+      text-align:left;
+      transition:all var(--transition);
+    }
+    .nav-item:hover { background:var(--accent-light); color:var(--accent); }
+    .nav-item.active { background:var(--accent); color:white; }
+    .nav-item i { width:18px; text-align:center; font-size:15px; flex-shrink:0; }
+
+    /* --- Main area --- */
+    .main {
+      flex:1;
+      display:flex;
+      overflow:hidden;
+      position:relative;
+    }
+
+    /* --- Pages --- */
+    .page {
+      display:none;
+      flex:1;
+      overflow:hidden;
+    }
+    .page.active { display:flex; }
+
+    /* ===================================================================
+       SHARED COMPONENTS
+    =================================================================== */
+
+    /* Buttons */
+    .btn-primary {
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      padding:9px 16px;
+      background:var(--accent);
+      color:white;
+      border:none;
+      border-radius:var(--r-sm);
+      cursor:pointer;
+      font-size:13px;
+      transition:background var(--transition);
+      white-space:nowrap;
+      flex-shrink:0;
+    }
+    .btn-primary:hover { background:var(--accent-hover); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .btn-secondary {
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      padding:8px 14px;
+      background:white;
+      color:var(--text-secondary);
+      border:1.5px solid var(--border);
+      border-radius:var(--r-sm);
+      cursor:pointer;
+      font-size:13px;
+      transition:all var(--transition);
+      white-space:nowrap;
+      flex-shrink:0;
+    }
+    .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-secondary:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .btn-icon {
+      background:none;
+      border:none;
+      cursor:pointer;
+      color:var(--text-secondary);
+      padding:6px;
+      border-radius:var(--r-sm);
+      font-size:14px;
+      transition:all var(--transition);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+    }
+    .btn-icon:hover { background:var(--accent-light); color:var(--accent); }
+    .btn-icon:disabled { opacity:0.4; cursor:not-allowed; }
+    .btn-icon.active { color:var(--accent); }
+
+    .btn-danger {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:9px 16px;
+      background:var(--danger-bg);
+      color:var(--danger);
+      border:1.5px solid var(--danger-border);
+      border-radius:var(--r-sm);
+      cursor:pointer;
+      font-size:13px;
+      transition:all var(--transition);
+      white-space:nowrap;
+    }
+    .btn-danger:hover { background:#FEE2E2; }
+
+    /* Search box */
+    .search-box {
+      display:flex;
+      align-items:center;
+      border:1.5px solid var(--border);
+      border-radius:var(--r-sm);
+      background:white;
+      overflow:hidden;
+      flex:1;
+      min-width:0;
+      transition:border-color var(--transition);
+    }
+    .search-box:focus-within { border-color:var(--accent); }
+    .search-box i { padding:0 8px 0 12px; color:var(--text-muted); font-size:13px; flex-shrink:0; }
+    .search-box input {
+      flex:1;
+      padding:9px 12px 9px 0;
+      border:none;
+      outline:none;
+      font-size:13px;
+      color:var(--text-primary);
+      background:transparent;
+      min-width:0;
+    }
+    .search-box input::placeholder { color:var(--text-muted); }
+
+    /* Inner tabs */
+    .inner-tabs {
+      display:flex;
+      background:var(--bg-sub);
+      border-radius:var(--r-sm);
+      padding:3px;
+      gap:0;
+      flex-shrink:0;
+    }
+    .inner-tab {
+      padding:7px 14px;
+      border:none;
+      background:none;
+      border-radius:5px;
+      font-size:13px;
+      cursor:pointer;
+      color:var(--text-secondary);
+      transition:all var(--transition);
+      white-space:nowrap;
+    }
+    .inner-tab.active {
+      background:white;
+      color:var(--accent);
+      box-shadow:var(--shadow-sm);
+      font-weight:500;
+    }
+
+    /* Toggle switch */
+    .toggle-sw {
+      width:44px;
+      height:24px;
+      background:var(--border);
+      border-radius:12px;
+      cursor:pointer;
+      position:relative;
+      transition:background 0.2s;
+      border:none;
+      flex-shrink:0;
+    }
+    .toggle-sw.on { background:var(--accent); }
+    .toggle-sw::after {
+      content:'';
+      position:absolute;
+      top:2px; left:2px;
+      width:20px; height:20px;
+      background:white;
+      border-radius:50%;
+      transition:left 0.2s;
+      box-shadow:var(--shadow-sm);
+    }
+    .toggle-sw.on::after { left:22px; }
+
+    /* Form elements */
+    .form-group { display:flex; flex-direction:column; gap:5px; }
+    .form-label { font-size:13px; font-weight:500; color:var(--text-secondary); }
+    .form-input {
+      padding:10px 14px;
+      border:1.5px solid var(--border);
+      border-radius:var(--r-sm);
+      font-size:14px;
+      outline:none;
+      width:100%;
+      transition:border-color var(--transition);
+      background:white;
+      color:var(--text-primary);
+    }
+    .form-input:focus { border-color:var(--accent); }
+    .form-select {
+      padding:8px 12px;
+      border:1.5px solid var(--border);
+      border-radius:var(--r-sm);
+      font-size:13px;
+      outline:none;
+      background:white;
+      color:var(--text-secondary);
+      cursor:pointer;
+      transition:border-color var(--transition);
+    }
+    .form-select:focus { border-color:var(--accent); }
+
+    /* Tag dot */
+    .tag-dot {
+      display:inline-block;
+      width:9px;
+      height:9px;
+      border-radius:50%;
+      flex-shrink:0;
+    }
+
+    /* Spinner */
+    .spinner {
+      width:20px; height:20px;
+      border:2px solid var(--border);
+      border-top-color:var(--accent);
+      border-radius:50%;
+      animation:spin 0.7s linear infinite;
+      flex-shrink:0;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Toast */
+    #toast-container {
+      position:fixed;
+      bottom:24px; left:50%;
+      transform:translateX(-50%);
+      z-index:9999;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      pointer-events:none;
+    }
+    .toast {
+      background:var(--text-primary);
+      color:white;
+      padding:10px 18px;
+      border-radius:var(--r-md);
+      font-size:13px;
+      box-shadow:var(--shadow-md);
+      animation:toast-in 0.25s ease, toast-out 0.25s ease 2.75s forwards;
+      pointer-events:auto;
+    }
+    .toast.success { background:#15803D; }
+    .toast.error   { background:var(--danger); }
+    @keyframes toast-in  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes toast-out { from { opacity:1; } to { opacity:0; } }
+
+    /* ===================================================================
+       PLAYER PAGE – LANDSCAPE
+    =================================================================== */
+    #player-page.active { display:flex; }
+
+    /* Player widget */
+    .player-widget {
+      width:var(--player-w);
+      min-width:var(--player-w);
+      border-right:1px solid var(--border);
+      display:flex;
+      flex-direction:column;
+      padding:20px 18px;
+      gap:14px;
+      overflow-y:auto;
+      overflow-x:hidden;
+    }
+
+    .album-art {
+      width:100%;
+      aspect-ratio:1;
+      border-radius:var(--r-md);
+      overflow:hidden;
+      background:linear-gradient(135deg, #DBEAFE 0%, #93C5FD 60%, #BFDBFE 100%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:var(--shadow-md);
+      flex-shrink:0;
+      position:relative;
+    }
+    .album-art img { width:100%; height:100%; object-fit:cover; }
+    .album-art .art-placeholder { font-size:52px; color:var(--accent); opacity:0.3; }
+    .now-playing-badge {
+      position:absolute;
+      bottom:10px; left:10px;
+      background:rgba(37,99,235,0.82);
+      color:white;
+      font-size:10px;
+      padding:3px 10px;
+      border-radius:20px;
+      display:flex;
+      align-items:center;
+      gap:4px;
+      font-weight:500;
+    }
+
+    .track-info { text-align:center; }
+    .track-title {
+      font-size:15px;
+      font-weight:700;
+      color:var(--text-primary);
+      margin-bottom:3px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .track-artist {
+      font-size:13px;
+      color:var(--text-secondary);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    /* Progress */
+    .progress-wrap { display:flex; flex-direction:column; gap:6px; }
+    .progress-bar {
+      height:4px;
+      background:var(--border);
+      border-radius:2px;
+      cursor:pointer;
+      position:relative;
+    }
+    .progress-fill {
+      height:100%;
+      width:0%;
+      background:var(--accent);
+      border-radius:2px;
+      position:relative;
+      pointer-events:none;
+    }
+    .progress-fill::after {
+      content:'';
+      position:absolute;
+      right:-6px; top:-4px;
+      width:12px; height:12px;
+      background:var(--accent);
+      border-radius:50%;
+      box-shadow:0 0 0 3px rgba(37,99,235,0.15);
+      opacity:0;
+      transition:opacity var(--transition);
+    }
+    .progress-bar:hover .progress-fill::after { opacity:1; }
+    .progress-times {
+      display:flex;
+      justify-content:space-between;
+      font-size:11px;
+      color:var(--text-muted);
+    }
+
+    /* Controls */
+    .ctrl-main {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+    }
+    .ctrl-btn {
+      background:none;
+      border:none;
+      cursor:pointer;
+      color:var(--text-secondary);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:50%;
+      transition:all var(--transition);
+      padding:8px;
+      flex-shrink:0;
+    }
+    .ctrl-btn:hover { color:var(--accent); background:var(--accent-light); }
+    .ctrl-btn.active { color:var(--accent); }
+    .ctrl-btn.ctrl-sm i { font-size:14px; }
+    .ctrl-btn.ctrl-md i { font-size:18px; }
+    .ctrl-btn.ctrl-lg i { font-size:22px; }
+    .ctrl-btn.play-btn {
+      width:46px; height:46px;
+      background:var(--accent);
+      color:white;
+      font-size:17px;
+    }
+    .ctrl-btn.play-btn:hover { background:var(--accent-hover); color:white; }
+
+    .ctrl-sub {
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .vol-group {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex:1;
+      min-width:0;
+    }
+    input[type=range].mini-range {
+      flex:1;
+      height:3px;
+      cursor:pointer;
+      accent-color:var(--accent);
+      min-width:0;
+      border-radius:2px;
+    }
+    .speed-select {
+      border:1px solid var(--border);
+      border-radius:var(--r-sm);
+      padding:5px 8px;
+      font-size:12px;
+      color:var(--text-secondary);
+      background:white;
+      cursor:pointer;
+      outline:none;
+      flex-shrink:0;
+    }
+
+    /* ===================================================================
+       PLAYLIST PANEL
+    =================================================================== */
+    .playlist-panel {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      min-width:0;
+    }
+
+    .playlist-head {
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      flex-shrink:0;
+    }
+    .playlist-row1 { display:flex; gap:8px; align-items:center; }
+    .playlist-row2 { display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+
+    /* Playlist selector tabs (scrollable row) */
+    .pl-tabs-row {
+      display:flex;
+      gap:4px;
+      overflow-x:auto;
+      padding-bottom:2px;
+    }
+    .pl-tabs-row::-webkit-scrollbar { height:2px; }
+    .pl-tab {
+      padding:6px 14px;
+      border:none;
+      background:none;
+      border-radius:20px;
+      font-size:12px;
+      cursor:pointer;
+      color:var(--text-secondary);
+      transition:all var(--transition);
+      white-space:nowrap;
+    }
+    .pl-tab.active { background:var(--accent); color:white; }
+    .pl-tab:hover:not(.active) { background:var(--accent-light); color:var(--accent); }
+
+    /* Sort bar */
+    .sort-bar {
+      padding:7px 16px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-shrink:0;
+    }
+    .sort-bar-left { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .track-count { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+
+    /* Virtual scroll container */
+    .virtual-scroll-outer {
+      flex:1;
+      overflow-y:auto;
+      position:relative;
+    }
+    .virtual-scroll-inner {
+      position:relative;
+    }
+    .virtual-scroll-viewport {
+      position:absolute;
+      left:0; right:0;
+    }
+
+    /* Track item */
+    .track-item {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 16px;
+      cursor:pointer;
+      transition:background 0.1s;
+      border-bottom:1px solid var(--border-light);
+      user-select:none;
+      min-height:58px;
+    }
+    .track-item:hover { background:var(--accent-light); }
+    .track-item.playing { background:var(--accent-mid); }
+    .track-item.selected { background:#EFF6FF; }
+
+    .track-reorder-btns {
+      display:flex;
+      flex-direction:column;
+      gap:0;
+      flex-shrink:0;
+    }
+    .track-reorder-btn {
+      background:none;
+      border:none;
+      cursor:pointer;
+      color:var(--text-muted);
+      padding:2px 4px;
+      font-size:11px;
+      border-radius:3px;
+      transition:all 0.1s;
+      line-height:1;
+    }
+    .track-reorder-btn:hover { color:var(--accent); background:var(--accent-light); }
+    .track-reorder-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+    .track-num {
+      width:20px;
+      text-align:center;
+      font-size:12px;
+      color:var(--text-muted);
+      flex-shrink:0;
+    }
+    .track-item.playing .track-num-txt { display:none; }
+    .playing-wave { display:none; justify-content:center; align-items:flex-end; height:16px; gap:2px; }
+    .track-item.playing .playing-wave { display:flex; }
+    .wave-bar { width:3px; background:var(--accent); border-radius:2px; animation:wave 0.8s ease-in-out infinite alternate; }
+    .wave-bar:nth-child(1) { height:6px; animation-delay:0s; }
+    .wave-bar:nth-child(2) { height:12px; animation-delay:0.15s; }
+    .wave-bar:nth-child(3) { height:8px; animation-delay:0.3s; }
+    @keyframes wave { from { transform:scaleY(0.4); } to { transform:scaleY(1); } }
+
+    .track-thumb {
+      width:40px; height:40px;
+      border-radius:var(--r-sm);
+      background:var(--accent-mid);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+      overflow:hidden;
+    }
+    .track-thumb img { width:100%; height:100%; object-fit:cover; }
+    .track-thumb i { font-size:16px; color:var(--accent); opacity:0.45; }
+
+    .track-meta { flex:1; min-width:0; }
+    .track-name {
+      font-size:13px;
+      font-weight:500;
+      color:var(--text-primary);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .track-item.playing .track-name { color:var(--accent); font-weight:600; }
+    .track-artist-row {
+      font-size:11px;
+      color:var(--text-muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      margin-top:2px;
+    }
+    .track-tags-row {
+      display:flex;
+      align-items:center;
+      gap:4px;
+      margin-top:3px;
+      flex-wrap:nowrap;
+      overflow:hidden;
+    }
+
+    .track-dur { font-size:12px; color:var(--text-muted); flex-shrink:0; }
+    .track-actions {
+      display:flex;
+      gap:1px;
+      opacity:0;
+      transition:opacity var(--transition);
+      flex-shrink:0;
+    }
+    .track-item:hover .track-actions { opacity:1; }
+    .track-act-btn {
+      background:none;
+      border:none;
+      color:var(--text-muted);
+      cursor:pointer;
+      padding:5px 6px;
+      border-radius:4px;
+      font-size:12px;
+      transition:all 0.1s;
+    }
+    .track-act-btn:hover { color:var(--accent); background:var(--accent-light); }
+
+    /* Select checkbox */
+    .track-checkbox {
+      display:none;
+      width:18px; height:18px;
+      border:2px solid var(--border);
+      border-radius:4px;
+      flex-shrink:0;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition:all 0.1s;
+    }
+    .select-mode .track-checkbox { display:flex; }
+    .track-checkbox.checked { background:var(--accent); border-color:var(--accent); }
+    .track-checkbox.checked::after { content:''; display:block; width:5px; height:9px; border:2px solid white; border-top:none; border-left:none; transform:rotate(45deg) translate(-1px, -1px); }
+
+    /* Bulk action bar */
+    #bulk-bar {
+      display:none;
+      align-items:center;
+      gap:8px;
+      padding:8px 16px;
+      background:var(--accent-mid);
+      border-bottom:1px solid var(--accent);
+      flex-shrink:0;
+    }
+    #bulk-bar.visible { display:flex; }
+    #bulk-count { font-size:13px; font-weight:500; color:var(--accent); flex:1; }
+
+    /* ===================================================================
+       LOG PAGE
+    =================================================================== */
+    #log-page { flex-direction:column; }
+    .page-header {
+      padding:14px 22px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+      flex-shrink:0;
+    }
+    .page-header h2 { font-size:17px; font-weight:700; }
+
+    .log-body { flex:1; overflow-y:auto; padding:20px 22px; }
+
+    .stats-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+      gap:12px;
+      margin-bottom:22px;
+    }
+    .stat-card {
+      background:white;
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      padding:16px 18px;
+      box-shadow:var(--shadow-sm);
+    }
+    .stat-icon { font-size:18px; color:var(--accent); margin-bottom:8px; }
+    .stat-label { font-size:11px; color:var(--text-muted); margin-bottom:5px; letter-spacing:0.04em; }
+    .stat-value { font-size:24px; font-weight:700; color:var(--text-primary); line-height:1.2; }
+    .stat-unit { font-size:14px; font-weight:400; }
+    .stat-sub { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+
+    .section-card {
+      background:white;
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      padding:18px 20px;
+      box-shadow:var(--shadow-sm);
+      margin-bottom:14px;
+    }
+    .section-card-title {
+      font-size:14px;
+      font-weight:600;
+      color:var(--text-secondary);
+      margin-bottom:14px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .section-card-title i { color:var(--accent); }
+
+    /* Bar chart */
+    .bar-chart-wrap { display:flex; align-items:flex-end; gap:5px; height:110px; }
+    .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .bar-col-bar { width:100%; background:var(--accent-mid); border-radius:3px 3px 0 0; transition:height 0.3s ease; min-height:2px; }
+    .bar-col-bar.highlight { background:var(--accent); }
+    .bar-col-label { font-size:10px; color:var(--text-muted); }
+
+    /* Ranking */
+    .ranking-item {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:9px 0;
+      border-bottom:1px solid var(--border-light);
+    }
+    .ranking-item:last-child { border-bottom:none; }
+    .ranking-num { font-size:16px; font-weight:700; width:26px; color:var(--text-muted); flex-shrink:0; }
+    .ranking-num.top { color:var(--accent); }
+    .ranking-name { flex:1; font-size:14px; font-weight:500; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ranking-val { font-size:12px; color:var(--text-muted); flex-shrink:0; }
+
+    /* Anniversary items */
+    .anniv-item {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 14px;
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      margin-bottom:8px;
+    }
+    .anniv-badge {
+      width:38px; height:38px;
+      background:var(--accent);
+      color:white;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:11px;
+      font-weight:700;
+      flex-shrink:0;
+      text-align:center;
+      line-height:1.2;
+    }
+    .anniv-info { flex:1; min-width:0; }
+    .anniv-title { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .anniv-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+    /* Calendar */
+    .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .cal-header h3 { font-size:16px; font-weight:600; }
+    .cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:3px; }
+    .cal-dow { font-size:11px; color:var(--text-muted); text-align:center; padding:4px 2px; font-weight:500; }
+    .cal-day {
+      font-size:13px;
+      text-align:center;
+      padding:7px 2px;
+      border-radius:6px;
+      cursor:pointer;
+      transition:all 0.1s;
+      position:relative;
+    }
+    .cal-day:hover { background:var(--accent-light); color:var(--accent); }
+    .cal-day.today { background:var(--accent); color:white; }
+    .cal-day.anniv-day { background:var(--accent-light); color:var(--accent); font-weight:600; }
+    .cal-day.has-event::after {
+      content:'';
+      position:absolute;
+      bottom:2px; left:50%;
+      transform:translateX(-50%);
+      width:4px; height:4px;
+      border-radius:50%;
+      background:var(--accent);
+    }
+    .cal-day.today.has-event::after { background:white; }
+    .cal-day.other-month { color:var(--text-muted); opacity:0.4; }
+
+    /* ===================================================================
+       EDIT PAGE
+    =================================================================== */
+    #edit-page { flex-direction:column; }
+    .edit-body { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+
+    .edit-toolbar {
+      padding:10px 20px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      flex-shrink:0;
+    }
+
+    /* Edit grid */
+    .edit-grid {
+      display:grid;
+      grid-template-columns:repeat(var(--edit-cols, 4), minmax(0, 1fr));
+      column-gap:var(--edit-col-gap, 12px);
+      row-gap:var(--edit-row-gap, 12px);
+      padding:18px 20px;
+      overflow-y:auto;
+      flex:1;
+      align-content:start;
+      align-items:start;
+      min-width:0;
+      --edit-cols:4;
+      --edit-col-gap:12px;
+      --edit-row-gap:12px;
+    }
+    .edit-grid[data-edit-mode='portrait'] {
+      --edit-cols:2;
+      --edit-col-gap:12px;
+      --edit-row-gap:18px;
+    }
+    .edit-grid[data-edit-mode='landscape'][data-edit-cols='4'] {
+      --edit-cols:4;
+      --edit-col-gap:12px;
+      --edit-row-gap:16px;
+    }
+    .edit-grid[data-edit-mode='landscape'][data-edit-cols='6'] {
+      --edit-cols:6;
+      --edit-col-gap:12px;
+      --edit-row-gap:12px;
+    }
+    .edit-card:hover { transform:translateY(-2px); }
+    .edit-card:hover .edit-card-art { border-color:var(--accent); box-shadow:var(--shadow-md); }
+    .edit-card:hover .edit-card-info { border-color:var(--accent); }
+
+    /* ── Edit card ──────────────────────────────
+     * Layout: flex column
+     *   [.edit-card-art]  square thumbnail (padding-top trick)
+     *   [.edit-card-info] text below, always visible
+     * ─────────────────────────────────────────── */
+    .edit-card {
+      border:none;
+      border-radius:var(--r-md);
+      cursor:pointer;
+      transition:all var(--transition);
+      background:transparent;
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+    }
+
+    /* Square art area using padding-top hack:
+     *   padding-top:100% on ::before → height = width → 1:1 square.
+     *   Works reliably even inside CSS Grid where aspect-ratio can collapse. */
+    .edit-card-art {
+      width:100%;
+      position:relative;
+      flex-shrink:0;
+      background:linear-gradient(135deg, #DBEAFE 0%, #93C5FD 100%);
+      border-radius:var(--r-md) var(--r-md) 0 0;
+      overflow:hidden;
+      border:1.5px solid var(--border);
+      border-bottom:none;
+    }
+    .edit-card-art::before {
+      content:'';
+      display:block;
+      padding-top:100%;  /* forces height = width */
+    }
+    /* Inner layer fills the square absolutely */
+    .edit-card-art-inner {
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .edit-card-art-inner img {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      object-position:center;
+      display:block;
+    }
+    .edit-card-art-inner i { font-size:28px; color:var(--accent); opacity:0.35; }
+
+    /* Info section — always below the square art */
+    .edit-card-info {
+      padding:8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+      background:white;
+      border:1.5px solid var(--border);
+      border-top:none;
+      border-radius:0 0 var(--r-md) var(--r-md);
+      min-width:0;
+    }
+    .edit-card-title {
+      font-size:12px;
+      font-weight:600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      color:var(--text-primary);
+      line-height:1.4;
+    }
+    .edit-card-artist {
+      font-size:11px;
+      color:var(--text-secondary);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .edit-card-date {
+      font-size:10px;
+      color:var(--text-muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      display:flex;
+      align-items:center;
+      gap:3px;
+    }
+    .edit-card-tags {
+      display:flex;
+      align-items:center;
+      gap:3px;
+      margin-top:4px;
+      flex-wrap:wrap;
+      max-height:42px;
+      overflow:hidden;
+    }
+    .edit-tag-chip {
+      display:inline-flex;
+      align-items:center;
+      gap:3px;
+      padding:2px 6px 2px 5px;
+      border-radius:20px;
+      font-size:10px;
+      font-weight:500;
+      white-space:nowrap;
+      max-width:88px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      flex-shrink:0;
+    }
+
+    /* Tag manager */
+    .tag-manager-wrap { flex:1; overflow-y:auto; padding:18px 20px; }
+    .tag-manager-list { display:flex; flex-direction:column; gap:8px; }
+    .tag-manager-item {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:11px 16px;
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      background:white;
+    }
+    .tag-color-swatch { width:16px; height:16px; border-radius:50%; flex-shrink:0; }
+    .tag-item-name { flex:1; font-size:14px; font-weight:500; }
+    .tag-item-count { font-size:12px; color:var(--text-muted); }
+    .tag-order-btns { display:flex; flex-direction:column; gap:1px; }
+
+    /* ===================================================================
+       SETTINGS PAGE
+    =================================================================== */
+    #settings-page { flex-direction:column; }
+    .settings-body { flex:1; overflow-y:auto; padding:22px 26px; }
+    .settings-inner { max-width:580px; }
+
+    .settings-section { margin-bottom:28px; }
+    .settings-section-title {
+      font-size:11px;
+      font-weight:600;
+      color:var(--text-muted);
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      margin-bottom:12px;
+      padding-bottom:8px;
+      border-bottom:1px solid var(--border);
+    }
+    .settings-row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 0;
+      border-bottom:1px solid var(--border-light);
+      gap:16px;
+    }
+    .settings-row:last-child { border-bottom:none; }
+    .settings-row-info { flex:1; }
+    .settings-row-label { font-size:14px; font-weight:500; }
+    .settings-row-desc { font-size:12px; color:var(--text-muted); margin-top:2px; line-height:1.5; }
+
+    /* Sync progress */
+    .sync-progress-wrap { margin-top:12px; display:none; }
+    .sync-progress-wrap.visible { display:block; }
+    .sync-bar-bg { height:6px; background:var(--border); border-radius:3px; overflow:hidden; margin-bottom:7px; }
+    .sync-bar-fill { height:100%; background:var(--accent); border-radius:3px; transition:width 0.4s ease; width:0%; }
+    .sync-status-row { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); }
+
+    /* ===================================================================
+       MODALS
+    =================================================================== */
+    .overlay {
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,0.38);
+      z-index:500;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+    .overlay.open { display:flex; }
+
+    .modal {
+      background:white;
+      border-radius:var(--r-lg);
+      width:520px;
+      max-width:100%;
+      max-height:90vh;
+      display:flex;
+      flex-direction:column;
+      box-shadow:var(--shadow-lg);
+      animation:modal-in 0.2s ease;
+    }
+    @keyframes modal-in {
+      from { opacity:0; transform:scale(0.96) translateY(8px); }
+      to   { opacity:1; transform:scale(1) translateY(0); }
+    }
+    .modal-header {
+      padding:18px 22px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-shrink:0;
+    }
+    .modal-title { font-size:16px; font-weight:700; }
+    .modal-close {
+      background:none;
+      border:none;
+      cursor:pointer;
+      color:var(--text-muted);
+      font-size:18px;
+      padding:4px 6px;
+      border-radius:var(--r-sm);
+      transition:all 0.1s;
+    }
+    .modal-close:hover { background:var(--bg-sub); color:var(--text-primary); }
+    .modal-body { padding:20px 22px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
+    .modal-footer { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; flex-shrink:0; }
+
+    /* Drop zone */
+    .drop-zone {
+      border:2px dashed var(--border);
+      border-radius:var(--r-md);
+      padding:32px 24px;
+      text-align:center;
+      cursor:pointer;
+      transition:all var(--transition);
+      color:var(--text-muted);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color:var(--accent);
+      background:var(--accent-light);
+      color:var(--accent);
+    }
+    .drop-zone i { font-size:34px; display:block; margin-bottom:10px; }
+    .drop-zone p { font-size:14px; }
+    .drop-zone span { font-size:12px; display:block; margin-top:5px; }
+
+    /* File queue */
+    .file-queue { display:flex; flex-direction:column; gap:6px; }
+    .file-queue-item {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 12px;
+      background:var(--bg-sub);
+      border-radius:var(--r-sm);
+      font-size:13px;
+    }
+    .file-queue-item i { color:var(--accent); flex-shrink:0; }
+    .file-queue-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .file-queue-size { font-size:11px; color:var(--text-muted); flex-shrink:0; }
+    .file-queue-remove { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:13px; padding:2px 4px; border-radius:3px; }
+    .file-queue-remove:hover { color:var(--danger); }
+
+    /* Edit track modal – thumbnail */
+    .edit-thumb-area {
+      display:flex;
+      gap:16px;
+      align-items:flex-start;
+    }
+    .edit-thumb-btn {
+      width:96px; height:96px;
+      border-radius:var(--r-md);
+      background:linear-gradient(135deg, #DBEAFE, #93C5FD);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      flex-shrink:0;
+      overflow:hidden;
+      border:2px dashed var(--border);
+      transition:all var(--transition);
+    }
+    .edit-thumb-btn:hover { border-color:var(--accent); }
+    .edit-thumb-btn img { width:100%; height:100%; object-fit:cover; }
+    .edit-thumb-btn i { font-size:26px; color:var(--accent); opacity:0.4; }
+
+    /* Tag picker */
+    .tag-pills { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+    .tag-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      padding:4px 10px;
+      border-radius:20px;
+      font-size:12px;
+      font-weight:500;
+      cursor:pointer;
+      border:none;
+    }
+    .tag-pill-remove { font-size:10px; cursor:pointer; opacity:0.7; }
+    .tag-pill-remove:hover { opacity:1; }
+
+    /* Color picker dots */
+    .color-dots { display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+    .color-dot-btn {
+      width:26px; height:26px;
+      border-radius:50%;
+      cursor:pointer;
+      border:2.5px solid transparent;
+      transition:border-color var(--transition);
+      flex-shrink:0;
+    }
+    .color-dot-btn.selected { border-color:var(--accent); }
+
+    /* Confirm modal */
+    .confirm-msg { font-size:14px; line-height:1.7; color:var(--text-secondary); }
+
+    /* Add to playlist modal */
+    .playlist-pick-list { display:flex; flex-direction:column; gap:6px; }
+    .playlist-pick-item {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      cursor:pointer;
+      transition:all var(--transition);
+    }
+    .playlist-pick-item:hover { border-color:var(--accent); background:var(--accent-light); }
+    .playlist-pick-item i { color:var(--accent); width:16px; text-align:center; }
+    .playlist-pick-name { flex:1; font-size:14px; }
+    .playlist-pick-count { font-size:12px; color:var(--text-muted); }
+
+    /* ===================================================================
+       PORTRAIT LAYOUT
+    =================================================================== */
+    .portrait-header { display:none; }
+    .mini-player { display:none; }
+    .bottom-nav { display:none; }
+    .full-player-overlay { display:none; }
+
+    /* Full player overlay (portrait) */
+    .full-player-overlay {
+      position:fixed;
+      inset:0;
+      background:white;
+      z-index:600;
+      flex-direction:column;
+    }
+    .full-player-overlay.open { display:flex; }
+    .fpo-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .fpo-header h2 { font-size:16px; font-weight:700; }
+    .fpo-body {
+      flex:1;
+      overflow-y:auto;
+      padding:20px 20px 24px;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+
+    @media (max-width: 768px) {
+      /*
+       * Portrait layout (top→bottom):
+       *   portrait-header  (flex-shrink:0)
+       *   .app             (flex:1, overflow:hidden)
+       *     └─ .main → player-page → playlist-panel (scrollable list)
+       *   .mini-player     (flex-shrink:0)
+       *   .bottom-nav      (flex-shrink:0)
+       */
+      body {
+        display:flex;
+        flex-direction:column;
+        height:100dvh;
+        overflow:hidden;
+      }
+
+      /* app fills space between portrait-header and mini-player */
+      .app {
+        flex:1;
+        flex-direction:column;
+        overflow:hidden;
+        height:auto; /* override the 100vh set for landscape */
+      }
+      .sidebar { display:none !important; }
+
+      /* Portrait header */
+      .portrait-header {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:13px 16px;
+        border-bottom:1px solid var(--border);
+        background:white;
+        flex-shrink:0;
+        z-index:50;
+      }
+      .portrait-header h1 {
+        font-family:'Playfair Display', serif;
+        font-size:20px;
+        color:var(--accent);
+      }
+      .portrait-header-right { display:flex; align-items:center; gap:4px; }
+
+      /* .main fills all space inside .app */
+      .main { flex:1; overflow:hidden; min-height:0; }
+
+      /* Player page: playlist-panel fills .main */
+      #player-page.active { flex-direction:column; overflow:hidden; }
+      .player-widget { display:none !important; }
+      .playlist-panel { flex:1; overflow:hidden; min-height:0; }
+
+      /* Mini player */
+      .mini-player {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding:10px 14px;
+        background:white;
+        border-top:1px solid var(--border);
+        cursor:pointer;
+        flex-shrink:0;
+        position:relative;
+        overflow:hidden;
+      }
+      .mini-player-thumb {
+        width:42px; height:42px;
+        border-radius:8px;
+        flex-shrink:0;
+        background:var(--accent-mid);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        overflow:hidden;
+      }
+      .mini-player-thumb img { width:100%; height:100%; object-fit:cover; }
+      .mini-player-thumb i { font-size:17px; color:var(--accent); opacity:0.6; }
+      .mini-player-info { flex:1; min-width:0; }
+      .mini-player-title {
+        font-size:14px;
+        font-weight:600;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+      }
+      .mini-player-artist {
+        font-size:12px;
+        color:var(--text-muted);
+        margin-top:1px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+      }
+      .mini-player-ctrls { display:flex; gap:0; flex-shrink:0; }
+      .mini-ctrl-btn {
+        background:none;
+        border:none;
+        cursor:pointer;
+        color:var(--text-secondary);
+        font-size:22px;
+        padding:7px;
+        border-radius:50%;
+        transition:all var(--transition);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
+      .mini-ctrl-btn:hover { color:var(--accent); }
+      .mini-ctrl-btn.play { color:var(--accent); }
+      .mini-progress {
+        position:absolute;
+        bottom:0; left:0; right:0;
+        height:2px;
+        background:var(--border);
+        pointer-events:none;
+      }
+      .mini-progress-fill { height:100%; background:var(--accent); }
+
+      /* Bottom nav */
+      .bottom-nav {
+        display:flex;
+        border-top:1px solid var(--border);
+        background:white;
+        flex-shrink:0;
+        padding-bottom:env(safe-area-inset-bottom, 0);
+      }
+      .bottom-nav-item {
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:3px;
+        padding:9px 6px 10px;
+        background:none;
+        border:none;
+        cursor:pointer;
+        color:var(--text-muted);
+        font-size:10px;
+        transition:color var(--transition);
+      }
+      .bottom-nav-item i { font-size:20px; }
+      .bottom-nav-item.active { color:var(--accent); }
+
+      /* Full player overlay */
+      .full-player-overlay { display:none; }
+      .full-player-overlay.open { display:flex; }
+
+      /* All pages fill .main properly */
+      .page.active { flex:1; min-height:0; overflow:hidden; }
+
+      /* Other pages portrait adjustments */
+      #log-page, #edit-page, #settings-page { flex-direction:column; }
+      .page-header { padding:11px 14px; }
+      .log-body { padding:14px 14px; }
+      .stats-grid { grid-template-columns:repeat(2, 1fr); gap:10px; }
+      .edit-toolbar { padding:9px 14px; }
+      .edit-body { min-height:0; }
+      /* !important to override JS inline style (grid.style.gridTemplateColumns) */
+      .edit-grid {
+        grid-template-columns:repeat(2, 1fr) !important;
+        padding:10px 12px;
+        gap:8px !important;
+        align-items:start !important;
+        align-content:start !important;
+      }
+      .settings-body { padding:14px 16px; }
+      .playlist-head { padding:10px 12px; }
+      .playlist-row2 { flex-wrap:wrap; }
+      .sort-bar { padding:6px 12px; flex-wrap:wrap; }
+      .track-item { padding:8px 12px; }
+      .inner-tabs { flex-wrap:nowrap; overflow-x:auto; }
+      .inner-tabs::-webkit-scrollbar { height:0; }
+      .page-header h2 { font-size:15px; }
+      .section-card { padding:14px 15px; }
+      /* Hide column-toggle button on portrait (always 2 cols) */
+      #edit-cols-btn { display:none !important; }
+
+      /* 2-col grid, tighter gap, ensure info section is always visible */
+      .edit-grid { gap:8px !important; padding:10px !important; }
+      .edit-card-title { font-size:11px !important; }
+      .edit-card-artist { font-size:10px !important; }
+
+      /* JS adds .page-hidden to mini-player when not on player page */
+      .mini-player.page-hidden { display:none !important; }
+    }
+
+    /* ===================================================================
+       UTILITY
+    =================================================================== */
+    .hidden { display:none !important; }
+    .text-center { text-align:center; }
+    .text-muted { color:var(--text-muted); }
+    .mt-4 { margin-top:4px; }
+    .mt-8 { margin-top:8px; }
+    .gap-8 { gap:8px; }
+    .flex { display:flex; }
+    .flex-center { display:flex; align-items:center; justify-content:center; }
+    .empty-state {
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:48px 24px;
+      color:var(--text-muted);
+      gap:12px;
+      text-align:center;
+    }
+    .empty-state i { font-size:40px; opacity:0.4; }
+    .empty-state p { font-size:14px; }
+  </style>
+</head>
+<body>
+
+<!-- ===== PORTRAIT HEADER ===== -->
+<header class="portrait-header" id="portrait-header">
+  <h1>Sonora</h1>
+</header>
+
+<!-- ===== APP ===== -->
+<div class="app" id="app">
+
+  <!-- SIDEBAR (landscape only) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="app-logo">
+      <h1>Sonora</h1>
+      <p>ミュージックプレイヤー</p>
+    </div>
+    <nav class="nav-list">
+      <button class="nav-item active" data-page="player" onclick="App.switchPage('player')">
+        <i class="fa-solid fa-music"></i>プレイヤー
+      </button>
+      <button class="nav-item" data-page="log" onclick="App.switchPage('log')">
+        <i class="fa-solid fa-chart-bar"></i>ログ
+      </button>
+      <button class="nav-item" data-page="edit" onclick="App.switchPage('edit')">
+        <i class="fa-solid fa-sliders"></i>情報編集
+      </button>
+      <button class="nav-item" data-page="settings" onclick="App.switchPage('settings')">
+        <i class="fa-solid fa-gear"></i>設定
+      </button>
+    </nav>
+    <!-- No login button here – login is in Settings -->
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+
+    <!-- ============================================================
+         PLAYER PAGE
+    ============================================================ -->
+    <section class="page active" id="player-page">
+
+      <!-- Player Widget (landscape) -->
+      <div class="player-widget" id="player-widget">
+        <div class="album-art" id="pw-album-art">
+          <i class="fa-solid fa-music art-placeholder"></i>
+          <div class="now-playing-badge" id="pw-now-badge">
+            <i class="fa-solid fa-volume-high" style="font-size:9px"></i>再生中
+          </div>
+        </div>
+        <div class="track-info">
+          <div class="track-title" id="pw-title">曲を選択してください</div>
+          <div class="track-artist" id="pw-artist">—</div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="pw-progress-bar">
+            <div class="progress-fill" id="pw-progress-fill"></div>
+          </div>
+          <div class="progress-times">
+            <span id="pw-time-cur">0:00</span>
+            <span id="pw-time-total">0:00</span>
+          </div>
+        </div>
+        <div class="ctrl-main">
+          <button class="ctrl-btn ctrl-sm" id="pw-shuffle" title="シャッフル" onclick="Player.toggleShuffle()">
+            <i class="fa-solid fa-shuffle"></i>
+          </button>
+          <button class="ctrl-btn ctrl-md" title="前の曲" onclick="Player.prev()">
+            <i class="fa-solid fa-backward-step"></i>
+          </button>
+          <button class="ctrl-btn play-btn" id="pw-play" title="再生/停止" onclick="Player.togglePlay()">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="ctrl-btn ctrl-md" title="次の曲" onclick="Player.next()">
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+          <button class="ctrl-btn ctrl-sm" id="pw-repeat" title="リピート" onclick="Player.cycleRepeat()">
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+        </div>
+        <div class="ctrl-sub">
+          <div class="vol-group">
+            <button class="btn-icon" id="pw-vol-icon" onclick="Player.toggleMute()" style="font-size:13px;padding:4px">
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <input type="range" class="mini-range" id="pw-vol" min="0" max="100" value="80" oninput="Player.setVolume(this.value)">
+          </div>
+          <select class="speed-select" id="pw-speed" onchange="Player.setSpeed(this.value)" title="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="1.75">1.75x</option>
+            <option value="2">2x</option>
+          </select>
+        </div>
+      </div><!-- /player-widget -->
+
+      <!-- Playlist Panel -->
+      <div class="playlist-panel" id="playlist-panel">
+        <div class="playlist-head">
+          <div class="playlist-row1">
+            <div class="search-box" id="pl-search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="pl-search-input" placeholder="タイトル、アーティスト、タグ、投稿日で検索...">
+            </div>
+            <button class="btn-secondary" id="new-pl-btn" onclick="UI.openNewPlaylistModal()" title="プレイリスト作成">
+              <i class="fa-solid fa-list-ul"></i>リスト作成
+            </button>
+            <button class="btn-primary" id="add-file-btn" onclick="UI.openUploadModal()" title="ファイルを追加">
+              <i class="fa-solid fa-plus"></i>追加
+            </button>
+          </div>
+          <div class="playlist-row2">
+            <div class="pl-tabs-row" id="pl-tabs-row">
+              <!-- Playlist tabs injected by JS -->
+            </div>
+            <button class="btn-secondary" id="select-btn" onclick="UI.toggleSelectMode()" style="padding:7px 10px">
+              <i class="fa-solid fa-check-square"></i>選択
+            </button>
+          </div>
+        </div>
+
+        <!-- Bulk action bar -->
+        <div id="bulk-bar">
+          <span id="bulk-count">0件選択</span>
+          <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="UI.bulkAddToPlaylist()">
+            <i class="fa-solid fa-plus"></i>リストに追加
+          </button>
+          <button class="btn-danger" style="padding:6px 12px;font-size:12px" onclick="UI.bulkDelete()">
+            <i class="fa-solid fa-trash"></i>削除
+          </button>
+          <button class="btn-secondary" style="padding:6px 12px;font-size:12px;margin-left:auto" onclick="UI.toggleSelectMode()">
+            キャンセル
+          </button>
+        </div>
+
+        <!-- Sort bar -->
+        <div class="sort-bar">
+          <div class="sort-bar-left">
+            <select class="form-select" id="pl-sort-select" onchange="UI.applySort()" style="font-size:12px;padding:5px 10px">
+              <option value="manual">手動順</option>
+              <option value="added">追加日順</option>
+              <option value="title">タイトル順</option>
+              <option value="artist">アーティスト順</option>
+              <option value="date">投稿日順</option>
+            </select>
+            <button class="btn-icon" id="pl-sort-dir" onclick="UI.toggleSortDir()" title="昇順/降順">
+              <i class="fa-solid fa-arrow-up-a-z"></i>
+            </button>
+          </div>
+          <span class="track-count" id="pl-track-count">0曲</span>
+        </div>
+
+        <!-- Virtual scroll playlist -->
+        <div class="virtual-scroll-outer" id="pl-scroll">
+          <div class="virtual-scroll-inner" id="pl-inner">
+            <div class="virtual-scroll-viewport" id="pl-viewport">
+              <!-- Rendered by VirtualList -->
+            </div>
+          </div>
+        </div>
+      </div><!-- /playlist-panel -->
+    </section><!-- /player-page -->
+
+    <!-- ============================================================
+         LOG PAGE
+    ============================================================ -->
+    <section class="page" id="log-page">
+      <div class="page-header">
+        <h2>ログ</h2>
+        <div class="inner-tabs" id="log-tabs">
+          <button class="inner-tab active" data-tab="log-overview" onclick="UI.switchLogTab(this)">全体</button>
+          <button class="inner-tab" data-tab="log-graph" onclick="UI.switchLogTab(this)">グラフ</button>
+          <button class="inner-tab" data-tab="log-calendar" onclick="UI.switchLogTab(this)">カレンダー</button>
+        </div>
+      </div>
+      <div class="log-body">
+
+        <!-- Overview -->
+        <div id="log-overview">
+          <div class="stats-grid" id="log-stats-grid">
+            <!-- Injected by JS -->
+          </div>
+          <div class="section-card" id="log-anniv-card">
+            <div class="section-card-title">
+              <i class="fa-solid fa-cake-candles"></i>投稿周年の楽曲
+            </div>
+            <div id="log-anniv-list">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Graph -->
+        <div id="log-graph" class="hidden">
+          <div class="section-card">
+            <div class="section-card-title">
+              <i class="fa-solid fa-chart-simple"></i>再生時間グラフ
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+              <div class="inner-tabs" id="graph-category-tabs">
+                <button class="inner-tab active" data-cat="total" onclick="UI.switchGraphCat(this)">総合</button>
+                <button class="inner-tab" data-cat="artist" onclick="UI.switchGraphCat(this)">アーティスト</button>
+                <button class="inner-tab" data-cat="tag" onclick="UI.switchGraphCat(this)">タグ</button>
+                <button class="inner-tab" data-cat="era" onclick="UI.switchGraphCat(this)">年代</button>
+              </div>
+              <div class="inner-tabs" id="graph-period-tabs">
+                <button class="inner-tab" data-period="week" onclick="UI.switchGraphPeriod(this)">週</button>
+                <button class="inner-tab active" data-period="month" onclick="UI.switchGraphPeriod(this)">月</button>
+                <button class="inner-tab" data-period="year" onclick="UI.switchGraphPeriod(this)">年</button>
+              </div>
+            </div>
+            <!-- 期間ナビゲーション -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <button class="btn-icon" onclick="UI.graphNavPrev()" title="前の期間">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <span id="graph-date-label" style="font-size:13px;color:var(--text-secondary);flex:1;text-align:center;font-weight:500"></span>
+              <button class="btn-icon" onclick="UI.graphNavNext()" title="次の期間" id="graph-nav-next">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+            <div class="bar-chart-wrap" id="graph-bar-chart"><!-- Injected --></div>
+          </div>
+          <div class="section-card">
+            <div class="section-card-title">
+              <i class="fa-solid fa-ranking-star"></i>ランキング
+            </div>
+            <div id="graph-ranking"><!-- Injected --></div>
+          </div>
+        </div>
+
+        <!-- Calendar -->
+        <div id="log-calendar" class="hidden">
+          <div class="section-card">
+            <div class="cal-header">
+              <button class="btn-icon" id="cal-prev" onclick="UI.calPrev()">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <h3 id="cal-title">—</h3>
+              <button class="btn-icon" id="cal-next" onclick="UI.calNext()">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+            <div class="cal-grid">
+              <div class="cal-dow">日</div><div class="cal-dow">月</div>
+              <div class="cal-dow">火</div><div class="cal-dow">水</div>
+              <div class="cal-dow">木</div><div class="cal-dow">金</div>
+              <div class="cal-dow">土</div>
+            </div>
+            <div class="cal-grid" id="cal-grid"><!-- Injected --></div>
+          </div>
+          <div class="section-card" id="cal-event-card" style="display:none">
+            <div class="section-card-title" id="cal-event-title">
+              <i class="fa-solid fa-calendar-day"></i>—
+            </div>
+            <div id="cal-event-list"><!-- Injected --></div>
+          </div>
+        </div>
+
+      </div><!-- /log-body -->
+    </section><!-- /log-page -->
+
+    <!-- ============================================================
+         EDIT PAGE
+    ============================================================ -->
+    <section class="page" id="edit-page">
+      <div class="page-header">
+        <h2>情報編集</h2>
+        <div class="inner-tabs" id="edit-tabs">
+          <button class="inner-tab active" data-tab="edit-tracks" onclick="UI.switchEditTab(this)">曲一覧</button>
+          <button class="inner-tab" data-tab="edit-tags" onclick="UI.switchEditTab(this)">タグ管理</button>
+        </div>
+      </div>
+      <div class="edit-body">
+
+        <!-- Track list -->
+        <div id="edit-tracks" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+          <div class="edit-toolbar">
+            <div class="search-box" style="max-width:280px">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="edit-search" placeholder="タイトル・アーティスト・タグ...">
+            </div>
+            <select class="form-select" id="edit-sort-select" onchange="UI.applyEditSort()" style="font-size:12px;padding:5px 10px">
+              <option value="manual">手動順</option>
+              <option value="added">追加日順</option>
+              <option value="title">タイトル順</option>
+              <option value="artist">アーティスト順</option>
+              <option value="date">投稿日順</option>
+            </select>
+            <button class="btn-icon" id="edit-sort-dir" onclick="UI.toggleEditSortDir()" title="昇順/降順">
+              <i class="fa-solid fa-arrow-up-a-z"></i>
+            </button>
+            <button class="btn-icon" id="edit-cols-btn" onclick="UI.toggleEditCols()" title="列数切替">
+              <i class="fa-solid fa-table-cells-large"></i>
+            </button>
+          </div>
+          <div class="edit-grid" id="edit-grid">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+
+        <!-- Tag manager -->
+        <div id="edit-tags" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+          <div class="edit-toolbar">
+            <button class="btn-primary" onclick="UI.openNewTagModal()">
+              <i class="fa-solid fa-plus"></i>タグを作成
+            </button>
+          </div>
+          <div class="tag-manager-wrap">
+            <div class="tag-manager-list" id="tag-manager-list">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section><!-- /edit-page -->
+
+    <!-- ============================================================
+         SETTINGS PAGE
+    ============================================================ -->
+    <section class="page" id="settings-page">
+      <div class="page-header">
+        <h2>設定</h2>
+      </div>
+      <div class="settings-body">
+        <div class="settings-inner">
+
+          <!-- Account -->
+          <div class="settings-section">
+            <div class="settings-section-title">アカウント</div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Googleアカウント連携</div>
+                <div class="settings-row-desc">ログインするとGoogle Driveと音楽データを同期できます。<br>
+                  異なる端末でも同じデータにアクセスできます。</div>
+              </div>
+              <button class="btn-secondary" id="settings-login-btn" onclick="Drive.toggleLogin()">
+                <i class="fa-brands fa-google" style="color:#4285F4"></i>
+                <span id="settings-login-txt">ログイン</span>
+              </button>
+            </div>
+            <div class="settings-row" id="account-info-row" style="display:none">
+              <div class="settings-row-info">
+                <div class="settings-row-label">ログイン中のアカウント</div>
+                <div class="settings-row-desc" id="account-email">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sync -->
+          <div class="settings-section">
+            <div class="settings-section-title">同期</div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">自動同期</div>
+                <div class="settings-row-desc">変更があった際に自動的にGoogle Driveと同期します（デフォルト: オフ）</div>
+              </div>
+              <button class="toggle-sw" id="auto-sync-toggle" onclick="Drive.toggleAutoSync(this)"></button>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">今すぐ同期</div>
+                <div class="settings-row-desc">Google Driveと手動で同期します</div>
+              </div>
+              <button class="btn-secondary" id="sync-now-btn" onclick="Drive.syncNow()">
+                <i class="fa-solid fa-arrows-rotate"></i>同期する
+              </button>
+            </div>
+            <div class="sync-progress-wrap" id="sync-progress-wrap">
+              <div class="sync-bar-bg">
+                <div class="sync-bar-fill" id="sync-bar-fill"></div>
+              </div>
+              <div class="sync-status-row">
+                <span id="sync-detail-txt">準備中...</span>
+                <span id="sync-pct-txt">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Data -->
+          <div class="settings-section">
+            <div class="settings-section-title">データ管理</div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">キャッシュのみリセット</div>
+                <div class="settings-row-desc">ページのキャッシュ（音声ファイル含む）を全て削除します。Drive上のデータは残ります。</div>
+              </div>
+              <button class="btn-danger" onclick="App.confirmReset('cache')">
+                <i class="fa-solid fa-trash-can"></i>リセット
+              </button>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">全データリセット</div>
+                <div class="settings-row-desc">キャッシュとGoogle Drive上のデータを全て削除します。この操作は取り消せません。</div>
+              </div>
+              <button class="btn-danger" onclick="App.confirmReset('all')">
+                <i class="fa-solid fa-triangle-exclamation"></i>全削除
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section><!-- /settings-page -->
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ===== MINI PLAYER (portrait) ===== -->
+<div class="mini-player" id="mini-player" onclick="UI.openFullPlayer()">
+  <div class="mini-player-thumb" id="mp-thumb">
+    <i class="fa-solid fa-music"></i>
+  </div>
+  <div class="mini-player-info">
+    <div class="mini-player-title" id="mp-title">曲を選択してください</div>
+    <div class="mini-player-artist" id="mp-artist">—</div>
+  </div>
+  <div class="mini-player-ctrls" onclick="event.stopPropagation()">
+    <button class="mini-ctrl-btn" onclick="Player.prev()"><i class="fa-solid fa-backward-step"></i></button>
+    <button class="mini-ctrl-btn play" id="mp-play" onclick="Player.togglePlay()"><i class="fa-solid fa-play"></i></button>
+    <button class="mini-ctrl-btn" onclick="Player.next()"><i class="fa-solid fa-forward-step"></i></button>
+  </div>
+  <div class="mini-progress">
+    <div class="mini-progress-fill" id="mp-progress"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bottom-nav-item active" data-page="player" onclick="App.switchPage('player');App.switchBotNav(this)">
+    <i class="fa-solid fa-music"></i>プレイヤー
+  </button>
+  <button class="bottom-nav-item" data-page="log" onclick="App.switchPage('log');App.switchBotNav(this)">
+    <i class="fa-solid fa-chart-bar"></i>ログ
+  </button>
+  <button class="bottom-nav-item" data-page="edit" onclick="App.switchPage('edit');App.switchBotNav(this)">
+    <i class="fa-solid fa-sliders"></i>情報編集
+  </button>
+  <button class="bottom-nav-item" data-page="settings" onclick="App.switchPage('settings');App.switchBotNav(this)">
+    <i class="fa-solid fa-gear"></i>設定
+  </button>
+</nav>
+
+<!-- ===== FULL PLAYER OVERLAY (portrait) ===== -->
+<div class="full-player-overlay" id="full-player-overlay">
+  <div class="fpo-header">
+    <button class="btn-icon" onclick="UI.closeFullPlayer()">
+      <i class="fa-solid fa-chevron-down"></i>
+    </button>
+    <h2>再生中</h2>
+    <button class="btn-icon" id="fpo-menu-btn">
+      <i class="fa-solid fa-ellipsis-vertical"></i>
+    </button>
+  </div>
+  <div class="fpo-body">
+    <div class="album-art" id="fpo-album-art" style="max-width:320px;margin:0 auto;width:100%">
+      <i class="fa-solid fa-music art-placeholder"></i>
+      <div class="now-playing-badge">
+        <i class="fa-solid fa-volume-high" style="font-size:9px"></i>再生中
+      </div>
+    </div>
+    <div class="track-info">
+      <div class="track-title" id="fpo-title" style="font-size:18px">曲を選択してください</div>
+      <div class="track-artist" id="fpo-artist">—</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="fpo-progress-bar">
+        <div class="progress-fill" id="fpo-progress-fill"></div>
+      </div>
+      <div class="progress-times">
+        <span id="fpo-time-cur">0:00</span>
+        <span id="fpo-time-total">0:00</span>
+      </div>
+    </div>
+    <div class="ctrl-main">
+      <button class="ctrl-btn ctrl-sm" id="fpo-shuffle" onclick="Player.toggleShuffle()">
+        <i class="fa-solid fa-shuffle"></i>
+      </button>
+      <button class="ctrl-btn ctrl-md" onclick="Player.prev()">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button class="ctrl-btn play-btn" id="fpo-play" onclick="Player.togglePlay()" style="width:52px;height:52px;font-size:19px">
+        <i class="fa-solid fa-play"></i>
+      </button>
+      <button class="ctrl-btn ctrl-md" onclick="Player.next()">
+        <i class="fa-solid fa-forward-step"></i>
+      </button>
+      <button class="ctrl-btn ctrl-sm" id="fpo-repeat" onclick="Player.cycleRepeat()">
+        <i class="fa-solid fa-repeat"></i>
+      </button>
+    </div>
+    <div class="ctrl-sub">
+      <div class="vol-group">
+        <button class="btn-icon" onclick="Player.toggleMute()" style="font-size:13px;padding:4px">
+          <i class="fa-solid fa-volume-high" id="fpo-vol-icon"></i>
+        </button>
+        <input type="range" class="mini-range" id="fpo-vol" min="0" max="100" value="80" oninput="Player.setVolume(this.value)">
+      </div>
+      <select class="speed-select" id="fpo-speed" onchange="Player.setSpeed(this.value)">
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="1.75">1.75x</option>
+        <option value="2">2x</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     MODALS
+================================================================= -->
+
+<!-- Upload modal -->
+<div class="overlay" id="upload-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">ファイルを追加</span>
+      <button class="modal-close" onclick="UI.closeModal('upload-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="drop-zone" id="upload-drop-zone">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <p>ここにファイルをドロップ</p>
+        <span>または</span>
+        <label style="margin-top:10px;display:inline-flex;cursor:pointer">
+          <span class="btn-primary" style="pointer-events:none">
+            <i class="fa-solid fa-folder-open"></i>ファイルを選択
+          </span>
+          <input type="file" id="file-input" accept=".mp3,.m4a,.wav,.flac,.ogg,audio/*" multiple style="display:none">
+        </label>
+        <span style="margin-top:8px">MP3 / M4A / WAV / FLAC / OGG に対応</span>
+      </div>
+      <div class="file-queue" id="file-queue"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeModal('upload-modal')">キャンセル</button>
+      <button class="btn-primary" id="upload-confirm-btn" onclick="App.uploadFiles()" disabled>
+        <i class="fa-solid fa-upload"></i>追加する
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- New playlist modal -->
+<div class="overlay" id="new-playlist-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">プレイリストを作成</span>
+      <button class="modal-close" onclick="UI.closeModal('new-playlist-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">プレイリスト名</label>
+        <input class="form-input" type="text" id="new-pl-name" placeholder="例: 夜のドライブ">
+      </div>
+      <div class="form-group">
+        <label class="form-label">説明（任意）</label>
+        <input class="form-input" type="text" id="new-pl-desc" placeholder="プレイリストの説明">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeModal('new-playlist-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="App.createPlaylist()">
+        <i class="fa-solid fa-check"></i>作成
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit track modal -->
+<div class="overlay" id="edit-track-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">情報を編集</span>
+      <button class="modal-close" onclick="UI.closeModal('edit-track-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="edit-thumb-area">
+        <label class="edit-thumb-btn" id="edit-thumb-btn" title="サムネイルをクリックして変更">
+          <i class="fa-solid fa-image"></i>
+          <input type="file" id="thumb-input" accept="image/*" style="display:none">
+        </label>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px">
+          <div class="form-group">
+            <label class="form-label">タイトル</label>
+            <input class="form-input" type="text" id="edit-title" placeholder="タイトル">
+          </div>
+          <div class="form-group">
+            <label class="form-label">アーティスト</label>
+            <input class="form-input" type="text" id="edit-artist" placeholder="アーティスト名" list="artist-datalist">
+            <datalist id="artist-datalist"></datalist>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">投稿日</label>
+        <input class="form-input" type="date" id="edit-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">タグ</label>
+        <div class="tag-pills" id="edit-tag-pills"></div>
+        <input class="form-input" type="text" id="edit-tag-input" placeholder="タグを入力（既存または新規）" list="tag-datalist">
+        <datalist id="tag-datalist"></datalist>
+      </div>
+      <input type="hidden" id="edit-track-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeModal('edit-track-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="App.saveTrackEdit()">
+        <i class="fa-solid fa-floppy-disk"></i>保存
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to playlist modal -->
+<div class="overlay" id="add-to-pl-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title">プレイリストに追加</span>
+      <button class="modal-close" onclick="UI.closeModal('add-to-pl-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="playlist-pick-list" id="pl-pick-list">
+        <!-- Injected by JS -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeModal('add-to-pl-modal')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- New/Edit tag modal -->
+<div class="overlay" id="tag-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <span class="modal-title" id="tag-modal-title">タグを作成</span>
+      <button class="modal-close" onclick="UI.closeModal('tag-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">タグ名</label>
+        <input class="form-input" type="text" id="tag-name-input" placeholder="例: J-POP">
+      </div>
+      <div class="form-group">
+        <label class="form-label">カラー</label>
+        <div class="color-dots" id="color-dots">
+          <button class="color-dot-btn" data-color="#DBEAFE" data-text="#1D4ED8" style="background:#DBEAFE" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#EDE9FE" data-text="#7C3AED" style="background:#EDE9FE" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#DCFCE7" data-text="#16A34A" style="background:#DCFCE7" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#FFE4E6" data-text="#E11D48" style="background:#FFE4E6" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#FEF3C7" data-text="#D97706" style="background:#FEF3C7" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#FCE7F3" data-text="#BE185D" style="background:#FCE7F3" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#CCFBF1" data-text="#0D9488" style="background:#CCFBF1" onclick="UI.selectTagColor(this)"></button>
+          <button class="color-dot-btn" data-color="#FEF9C3" data-text="#854D0E" style="background:#FEF9C3" onclick="UI.selectTagColor(this)"></button>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted);cursor:pointer">
+            <input type="color" id="custom-color-input" value="#3B82F6" style="width:26px;height:26px;border:none;cursor:pointer;border-radius:50%;padding:0" onchange="UI.selectCustomColor(this.value)">
+            カスタム
+          </label>
+        </div>
+        <!-- Preview -->
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-muted)">プレビュー:</span>
+          <span class="tag-dot" id="tag-preview-dot" style="background:#DBEAFE"></span>
+          <span id="tag-preview-name" style="font-size:13px;font-weight:500">タグ名</span>
+        </div>
+      </div>
+      <input type="hidden" id="tag-edit-id">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeModal('tag-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="App.saveTag()">
+        <i class="fa-solid fa-check"></i><span id="tag-modal-btn-txt">作成</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="overlay" id="confirm-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title" id="confirm-title">確認</span>
+      <button class="modal-close" onclick="UI.closeModal('confirm-modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-msg" id="confirm-msg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="UI.closeModal('confirm-modal')">キャンセル</button>
+      <button class="btn-danger" id="confirm-ok-btn">
+        <i class="fa-solid fa-trash-can"></i>削除する
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Audio element (hidden) -->
+<audio id="audio-el" preload="none"></audio>
+
+<!-- Bootstrap: portrait mini-player show/hide helper (runs before full app.js) -->
+<script>
+  // Minimal page-switch helper so layout works even before app.js loads
+  (function() {
+    var isPortrait = function() { return window.matchMedia('(max-width:768px)').matches; };
+    var miniPlayer  = null;
+    var bottomItems = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      miniPlayer  = document.getElementById('mini-player');
+      bottomItems = document.querySelectorAll('.bottom-nav-item');
+    });
+
+    // Exported so App.switchPage can call it
+    window._updateMiniPlayerVisibility = function(page) {
+      if (!miniPlayer) return;
+      if (isPortrait()) {
+        if (page === 'player') {
+          miniPlayer.classList.remove('page-hidden');
+        } else {
+          miniPlayer.classList.add('page-hidden');
+        }
+      }
+    };
+  })();
+</script>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google API Client -->
+<script src="https://apis.google.com/js/api.js" async defer></script>
+
+<!-- App scripts (loaded in order) -->
+<script src="js/storage.js"></script>
+<script src="js/player.js"></script>
+<script src="js/drive.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+<!-- Service Worker registration (PWA) -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      // Derive the correct sw.js URL relative to this page,
+      // so it works on both root domains and subdirectory GitHub Pages.
+      // e.g. https://user.github.io/repo/ → /repo/sw.js
+      const swUrl = new URL('./sw.js', document.baseURI).href;
+
+      navigator.serviceWorker.register(swUrl)
+        .then(reg => {
+          console.log('[SW] Registered, scope:', reg.scope);
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                setTimeout(() => {
+                  if (typeof UI !== 'undefined')
+                    UI.toast('アプリを更新しました。再読み込みで反映されます。');
+                }, 3000);
+              }
+            });
+          });
+        })
+        .catch(e => console.warn('[SW] Registration failed:', e));
+    });
+  }
+</script>
+
+</body>
+</html>
