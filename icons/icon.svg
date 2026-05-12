@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#2563EB"/>
+  <!-- Music note -->
+  <g fill="white">
+    <!-- Note head 1 -->
+    <ellipse cx="168" cy="340" rx="52" ry="38" transform="rotate(-15 168 340)"/>
+    <!-- Note head 2 -->
+    <ellipse cx="344" cy="296" rx="52" ry="38" transform="rotate(-15 344 296)"/>
+    <!-- Stem 1 -->
+    <rect x="210" y="168" width="22" height="178" rx="11"/>
+    <!-- Stem 2 -->
+    <rect x="386" y="124" width="22" height="178" rx="11"/>
+    <!-- Beam -->
+    <rect x="210" y="162" width="198" height="28" rx="10"/>
+  </g>
+</svg>
