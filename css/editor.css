@@ -1,0 +1,293 @@
+/* ============================================================
+   EDITOR SCREEN
+   ============================================================ */
+
+/* Sub-navigation (14)(15)(16) */
+.editor-subnav {
+  display: flex;
+  align-items: center;
+  border-bottom: 1.5px solid var(--color-border);
+  background: var(--color-bg);
+  padding: 0 var(--sp-4);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.editor-subnav::-webkit-scrollbar { display: none; }
+.subnav-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-2);
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  transition: color var(--t), border-color var(--t);
+  white-space: nowrap;
+}
+.subnav-btn:hover { color: var(--color-text); }
+.subnav-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.subnav-btn svg.lucide { width: 16px; height: 16px; }
+
+/* Sub-sections */
+.editor-subsection {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.editor-subsection.active { display: flex; }
+
+.subsection-header {
+  padding: var(--sp-3) var(--sp-4);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ============================================================
+   EDITOR TRACK GRID (21) - virtual scroll
+   ============================================================ */
+
+.editor-grid-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editor-grid-viewport {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.editor-grid-content {
+  display: grid;
+  gap: var(--sp-3);
+}
+.editor-grid-content[data-cols="2"] { grid-template-columns: repeat(2, 1fr); }
+.editor-grid-content[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+.editor-grid-content[data-cols="4"] { grid-template-columns: repeat(4, 1fr); }
+.editor-grid-content[data-cols="6"] { grid-template-columns: repeat(6, 1fr); }
+
+/* Grid card */
+.grid-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--t), box-shadow var(--t), transform var(--t);
+}
+.grid-card:hover {
+  border-color: var(--color-primary-border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.grid-card-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--color-bg-3);
+  position: relative;
+  overflow: hidden;
+}
+.grid-card-thumb {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.grid-card:hover .grid-card-thumb { transform: scale(1.04); }
+.grid-card-thumb-default {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-3);
+}
+.grid-card-thumb-default svg.lucide { width: 32px; height: 32px; }
+
+.grid-card-info {
+  padding: var(--sp-2) var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.grid-card-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grid-card-artist {
+  font-size: var(--text-xs);
+  color: var(--color-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.grid-card-date {
+  font-size: var(--text-xs);
+  color: var(--color-text-3);
+}
+.grid-card-tags {
+  display: flex;
+  gap: 3px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  margin-top: 2px;
+  align-items: center;
+}
+
+/* ============================================================
+   TAG LIST (23)
+   ============================================================ */
+
+.tag-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--r-md);
+  transition: border-color var(--t);
+}
+.tag-item:hover { border-color: var(--color-border-2); }
+
+.tag-item-icon {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tag-item-name {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tag-item-count {
+  font-size: var(--text-xs);
+  color: var(--color-text-3);
+  background: var(--color-bg-3);
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+}
+.tag-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tag-item-actions .icon-btn { width: 28px; height: 28px; }
+.tag-item-actions .icon-btn svg.lucide { width: 14px; height: 14px; }
+
+.order-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.order-arrow {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm);
+  color: var(--color-text-3);
+  transition: background var(--t), color var(--t);
+}
+.order-arrow:hover { background: var(--color-bg-hover); color: var(--color-text); }
+.order-arrow:disabled { opacity: 0.2; cursor: not-allowed; }
+.order-arrow svg.lucide { width: 12px; height: 12px; }
+
+/* ============================================================
+   ARTIST LIST (25)
+   ============================================================ */
+
+.artist-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.artist-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--r-md);
+  transition: border-color var(--t);
+}
+.artist-item:hover { border-color: var(--color-border-2); }
+
+.artist-item-icon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-bg-3);
+  flex-shrink: 0;
+  position: relative;
+}
+.artist-item-icon img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.artist-icon-placeholder {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-3);
+}
+.artist-icon-placeholder svg.lucide { width: 20px; height: 20px; }
+
+.artist-item-info { flex: 1; min-width: 0; }
+.artist-item-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.artist-item-count { font-size: var(--text-xs); color: var(--color-text-3); }
+
+.artist-item-actions {
+  display: flex; align-items: center; gap: 2px;
+}
+.artist-item-actions .icon-btn { width: 28px; height: 28px; }
+.artist-item-actions .icon-btn svg.lucide { width: 14px; height: 14px; }
+
+/* ============================================================
+   TRACK EDIT MODAL  
+   ============================================================ */
+
+.multi-select-input-wrap {
+  position: relative;
+}
+.suggestions-dropdown {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
