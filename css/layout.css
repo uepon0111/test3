@@ -1,0 +1,208 @@
+/* ============================================================
+   LANDSCAPE layout  (orientation: landscape)
+   nav | player-panel | content-area
+   ============================================================ */
+
+/* === Main nav (sidebar) === */
+.main-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--nav-size);
+  height: var(--app-height, 100dvh);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+  flex-shrink: 0;
+  z-index: var(--z-nav);
+  padding: var(--sp-4) 0;
+  gap: var(--sp-1);
+  overflow: hidden;
+}
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-md);
+  color: var(--color-text-3);
+  transition: background var(--t), color var(--t);
+  position: relative;
+}
+.nav-tab:hover  { background: var(--color-bg-hover); color: var(--color-text-2); }
+.nav-tab.active { background: var(--color-primary-bg); color: var(--color-primary); }
+.nav-tab .nav-icon { width: 20px; height: 20px; }
+.nav-tab .nav-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* === Player panel === */
+.player-panel {
+  width: var(--player-w);
+  flex-shrink: 0;
+  height: var(--app-height, 100dvh);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* === Content area === */
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Screens container */
+.screens-wrap {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* === Mini player (shown below screens in landscape non-player) === */
+.mini-player {
+  height: var(--mini-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 calc(var(--sp-4) + env(safe-area-inset-left)) 0 calc(var(--sp-4) + env(safe-area-inset-right));
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom);
+  cursor: default;
+}
+.mini-player-click {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-2);
+  transition: background var(--t);
+}
+.mini-player-click:hover { background: var(--color-bg-hover); }
+
+/* Landscape: player panel shown by default; responsive.css overrides based on .showing-X */
+.app-landscape .player-panel { display: flex; }
+
+/* ============================================================
+   PORTRAIT layout  (orientation: portrait)
+   content-area | mini-player | nav
+   ============================================================ */
+
+.app-portrait {
+  flex-direction: column;
+}
+
+.app-portrait .main-nav {
+  flex-direction: row;
+  width: 100%;
+  height: var(--nav-size);
+  border-right: none;
+  border-top: 1px solid var(--color-border);
+  padding: var(--sp-2) var(--sp-4) calc(var(--sp-2) + env(safe-area-inset-bottom));
+  justify-content: space-around;
+  order: 3;
+}
+
+.app-portrait .nav-tab {
+  flex: 1;
+  height: 48px;
+}
+
+.app-portrait .player-panel {
+  display: none; /* hidden; shown as overlay when mini-player tapped */
+}
+
+.app-portrait .content-area {
+  flex: 1;
+  order: 1;
+  min-height: 0;
+}
+
+.app-portrait .mini-player {
+  order: 2;
+  display: flex;
+  border-top: 1px solid var(--color-border);
+  border-bottom: none;
+}
+
+/* Portrait: hide mini player for player screen (full view replaces it via overlay) */
+/* Keep mini player always visible in portrait - it's the control surface */
+
+/* === Player Overlay (tapping mini player) === */
+.player-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.player-overlay.visible { pointer-events: all; }
+
+.player-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity var(--t-slow);
+}
+.player-overlay.visible .player-overlay-backdrop { opacity: 1; }
+
+.player-overlay-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: calc(var(--app-height, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  background: var(--color-bg);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(100%);
+  transition: transform var(--t-slow) cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: var(--shadow-xl);
+}
+.player-overlay.visible .player-overlay-sheet {
+  transform: translateY(0);
+}
+
+.overlay-drag-handle {
+  width: 36px; height: 4px;
+  background: var(--gray-300);
+  border-radius: var(--r-full);
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+/* In landscape, overlay is a centered modal instead */
+.app-landscape .player-overlay-sheet {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, calc(-50% + 20px));
+  bottom: auto; right: auto;
+  width: min(420px, 96vw);
+  max-height: 90dvh;
+  border-radius: var(--r-xl);
+}
+.app-landscape .player-overlay.visible .player-overlay-sheet {
+  transform: translate(-50%, -50%);
+}
