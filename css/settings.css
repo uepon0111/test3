@@ -1,0 +1,114 @@
+/*
+ * settings.css
+ * -----------------------------------------------------------------------
+ * 設定ページ(settings.html)専用のスタイル。
+ * 機種プロファイルの一覧・読み取り範囲のビジュアルエディタ(ドラッグ&リサイズ)・
+ * 座標数値入力パネルのレイアウトを定義します。
+ * -----------------------------------------------------------------------
+ */
+
+/* 設定モーダルの本体 (.modal-header を除いた残り) をスクロール領域にする。
+   .modal-form-content は height:85vh; overflow:hidden の固定高さコンテナなので、
+   ヘッダー以外のこの部分に flex:1 + overflow-y:auto を与えてスクロール可能にしている。 */
+.settings-modal-body { flex: 1; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+
+.settings-intro { background: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; font-size: 0.9rem; color: #555; line-height: 1.6; }
+.settings-intro ul { margin: 8px 0 0 0; padding-left: 20px; }
+
+.settings-layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+
+/* --- 左: プロファイル一覧 --- */
+.profile-sidebar { width: 260px; flex-shrink: 0; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 16px; box-sizing: border-box; }
+.profile-sidebar h3 { margin: 0 0 10px 0; font-size: 1rem; color: #444; display: flex; align-items: center; gap: 6px; }
+.profile-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; max-height: 420px; overflow-y: auto; }
+.profile-list-item { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer; transition: background 0.15s, border-color 0.15s; min-width: 0; }
+.profile-list-item:hover { background-color: #f5f7fa; }
+.profile-list-item.active { background-color: var(--active-color); border-color: #007bff; }
+.profile-list-item-name { font-weight: bold; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-list-item-meta { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+.btn { border: none; border-radius: 8px; padding: 10px 14px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn.full-width { width: 100%; box-sizing: border-box; margin-top: 6px; }
+.btn-primary { background-color: #28a745; color: white; }
+.btn-primary:hover { background-color: #218838; }
+.btn-secondary { background-color: #007bff; color: white; }
+.btn-secondary:hover { background-color: #0069d9; }
+.btn-danger { background-color: #dc3545; color: white; }
+.btn-danger:hover { background-color: #c82333; }
+.btn-danger:disabled { background-color: #eee; color: #aaa; cursor: not-allowed; }
+.btn-text { background: none; color: #555; border: 1px solid var(--border-color); }
+.btn-text:hover { background-color: #f0f0f0; }
+
+.profile-sidebar hr { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+
+/* --- 右: エディタ本体 --- */
+.editor-main { flex: 1; min-width: 320px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; }
+
+.editor-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.editor-toolbar input[type="text"] { flex: 1 1 180px; min-width: 120px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; background-color: #fafafa; }
+.file-label { position: relative; overflow: hidden; }
+
+/* --- 範囲タブ --- */
+.region-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.region-tab {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border-color);
+  background: #fafafa; cursor: pointer; font-weight: bold; font-size: 0.85rem; color: #666; font-family: inherit;
+}
+.region-tab:hover { background: #f0f0f0; }
+.region-tab.active { background-color: #333; color: white; border-color: #333; }
+.region-tab-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* --- エディタ本体レイアウト --- */
+.editor-body { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+
+.image-editor-container {
+  position: relative; flex: 2 1 420px; min-width: 280px; background: #e9ecef; border-radius: 8px;
+  padding: 30px 4px 4px 4px; box-sizing: border-box; overflow: visible; user-select: none;
+}
+#sample-img { display: block; width: 100%; height: auto; border-radius: 4px; pointer-events: none; user-select: none; }
+.no-image-placeholder {
+  display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre-line;
+  min-height: 260px; color: #888; font-size: 0.9rem; padding: 20px; box-sizing: border-box; line-height: 1.6;
+}
+
+/* --- 読み取り範囲ボックス --- */
+.region-box {
+  position: absolute; box-sizing: border-box; border: 2px solid var(--region-color, #007bff);
+  background-color: var(--region-color-bg, rgba(0,123,255,0.15)); touch-action: none; overflow: visible;
+  transition: opacity 0.15s;
+}
+.region-box.inactive-region { opacity: 0.35; pointer-events: none; z-index: 1; }
+.region-box.active-region { opacity: 1; pointer-events: auto; z-index: 6; cursor: move; }
+
+.region-box-label {
+  position: absolute; top: 2px; left: 2px; color: white; font-size: 0.7rem; font-weight: bold;
+  padding: 2px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.region-handle {
+  position: absolute; width: 12px; height: 12px; background: white; border: 2px solid var(--region-color, #007bff);
+  border-radius: 50%; box-sizing: border-box; touch-action: none; z-index: 7;
+}
+.region-box.inactive-region .region-handle { display: none; }
+
+.handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.handle-n  { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.handle-w  { top: 50%; left: -6px; transform: translateY(-50%); cursor: ew-resize; }
+.handle-e  { top: 50%; right: -6px; transform: translateY(-50%); cursor: ew-resize; }
+.handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.handle-s  { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+/* --- 座標数値パネル --- */
+.coordinate-panel { flex: 1 1 220px; min-width: 200px; background: #f8f9fa; border-radius: 8px; padding: 16px; box-sizing: border-box; }
+.coordinate-panel h3 { margin: 0 0 4px 0; font-size: 0.95rem; color: #333; }
+.coord-panel-hint { margin: 0 0 12px 0; font-size: 0.75rem; color: #888; }
+.coordinate-panel label { display: block; font-size: 0.78rem; font-weight: bold; color: #666; margin-bottom: 10px; }
+.coordinate-panel input[type="number"] { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; }
+.coord-hint { font-size: 0.78rem; color: #888; line-height: 1.5; margin-top: 4px; }
+
+@media (max-width: 720px) {
+  .settings-layout { flex-direction: column; }
+  .profile-sidebar { width: 100%; }
+}

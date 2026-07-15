@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>プロセカ リザルト管理</title>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/debug-log.css">
+  </head>
+  <body>
+
+    <div id="imageModal" class="modal" onclick="if(event.target === this) closeImageModal()">
+      <span class="close-btn" onclick="closeImageModal()">&times;</span>
+      <img class="modal-content-img" id="modalImg">
+    </div>
+
+    <div id="batchModal" class="modal" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-form-content">
+        <div class="modal-header">
+          <span id="batch-modal-title"><span class="material-symbols-outlined">cloud_upload</span> 画像アップロード・編集</span>
+          <span style="cursor:pointer;" onclick="closeBatchModal()">&times;</span>
+        </div>
+
+        <div id="upload-initial" style="display: flex; flex: 1;">
+            <div id="drop-zone" class="drop-zone" onclick="document.getElementById('up-file').click()">
+            <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 10px;">upload_file</span>
+            <div style="font-size: 1.2rem; font-weight: bold;">クリックして画像を選択</div>
+            <div style="font-size: 0.9rem; margin-top: 5px;">または画像をここにドラッグ＆ドロップ</div>
+            <input type="file" id="up-file" accept="image/*" multiple style="display: none;">
+            </div>
+        </div>
+
+        <div id="batch-workspace" class="split-container" style="display: none;">
+            <div class="sidebar">
+                <div class="sidebar-toolbar">
+                    <button class="btn-analyze-all" onclick="analyzeAllInBatch()">
+                        <span class="material-symbols-outlined">analytics</span> 一括解析 (すべて)
+                    </button>
+                </div>
+                <div id="batch-sidebar-list" style="overflow-y:auto; flex:1;"></div>
+            </div>
+
+            <div class="main-area">
+                <div id="batch-editor-container" class="editor-layout" style="display: none;">
+                    <div class="preview-pane">
+                        <img id="batch-preview-img" src="" crossorigin="anonymous">
+                    </div>
+                    <div class="form-pane">
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="btn-reanalyze" onclick="reanalyzeCurrentItem()">
+                                <span class="material-symbols-outlined" style="font-size:1rem;">analytics</span> この画像を再解析
+                            </button>
+                            <button type="button" id="btn-view-log" class="btn-view-log" onclick="openDebugLogModal(activeItemId)" disabled>
+                                <span class="material-symbols-outlined" style="font-size:1rem;">manage_search</span> 実測ログを見る
+                            </button>
+                        </div>
+
+                        <div id="form-warnings-banner" class="form-warnings-banner" style="display:none;"></div>
+
+                        <div class="form-group">
+                            <label>曲名</label>
+                            <input type="text" id="up-title" style="width: 100%; box-sizing: border-box;" oninput="updateCurrentItem('title', this.value)">
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <div class="form-group" style="flex:1;">
+                                <label>レベル</label>
+                                <input type="number" id="up-level" style="width: 100%; box-sizing: border-box;" oninput="updateCurrentItem('level', this.value)">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label>難易度</label>
+                                <select id="up-diff" style="width: 100%; box-sizing: border-box;" onchange="updateCurrentItem('diff', this.value)"></select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>判定内訳</label>
+                            <div class="breakdown-group">
+                                <div class="breakdown-item">
+                                    <label style="color:#e0a700;">PERFECT</label>
+                                    <input type="number" id="up-perfect" min="0" value="0" oninput="updateCurrentItem('perfect', this.value)">
+                                </div>
+                                <div class="breakdown-item">
+                                    <label style="color:#ff8a65;">GREAT</label>
+                                    <input type="number" id="up-great" min="0" value="0" oninput="updateCurrentItem('great', this.value)">
+                                </div>
+                                <div class="breakdown-item">
+                                    <label style="color:#8ac5f7;">GOOD</label>
+                                    <input type="number" id="up-good" min="0" value="0" oninput="updateCurrentItem('good', this.value)">
+                                </div>
+                                <div class="breakdown-item">
+                                    <label style="color:#57c98a;">BAD</label>
+                                    <input type="number" id="up-bad" min="0" value="0" oninput="updateCurrentItem('bad', this.value)">
+                                </div>
+                                <div class="breakdown-item">
+                                    <label style="color:#999;">MISS</label>
+                                    <input type="number" id="up-miss-detail" min="0" value="0" oninput="updateCurrentItem('missDetail', this.value)">
+                                </div>
+                            </div>
+                            <div class="total-score">
+                                総ミス数 (GOOD+BAD+MISS): <span id="up-total-miss" style="font-size:1.2rem; color:var(--accent-color);">0</span>
+                            </div>
+                        </div>
+
+                        <div class="side-by-side-row">
+                            <div class="form-group">
+                                <label><span class="material-symbols-outlined" style="font-size:1rem;">bolt</span> コンボ数</label>
+                                <input type="number" id="up-combo" min="0" value="0" style="width:100%; box-sizing:border-box;" oninput="updateCurrentItem('combo', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label><span class="material-symbols-outlined" style="font-size:1rem;">smartphone</span> 機種プロファイル</label>
+                                <select id="up-device" style="width:100%; box-sizing:border-box;" onchange="onDeviceProfileChange(this.value)"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="batch-empty-msg" style="margin:auto; color:#999; text-align:center;">
+                    左のリストから画像を選択してください
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-header" style="font-size: 0.9rem; padding: 10px 20px; background: #f8f9fa; border-top: 1px solid #eee; border-bottom: none; display:block;" id="batch-msg-area">
+             <span id="batch-status-msg">待機中...</span>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-cancel" onclick="closeBatchModal()">閉じる</button>
+          <button class="btn-submit" id="btn-exec-batch" onclick="handleBatchExecution()" disabled>実行</button>
+        </div>
+      </div>
+    </div>
+
+    <!--
+      読み取り設定モーダル
+      以前は settings.html という別ページでしたが、別画面への遷移(別タブ/別ページ読み込み)を
+      挟むとGoogleログインのトークンがメモリ上から失われ「ログアウトされる」問題があったため、
+      index.html 内のモーダルとして統合しました。ページ遷移が発生しないため、
+      範囲設定をどれだけ調整してもログイン状態は維持されます。
+    -->
+    <div id="settingsModal" class="modal" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-form-content">
+        <div class="modal-header">
+          <span><span class="material-symbols-outlined">tune</span> 読み取り範囲設定</span>
+          <span style="cursor:pointer;" onclick="closeSettingsModal()">&times;</span>
+        </div>
+
+        <div class="settings-modal-body">
+          <div class="settings-intro">
+            リザルト画像から「難易度」「楽曲レベル」「曲名」「判定内訳」「コンボ数」を読み取る範囲を、機種(画面の解像度・比率)ごとに保存できます。
+            <ul>
+              <li>右上からその機種のスクリーンショットを1枚選択すると、範囲を画像に重ねて確認しながら調整できます。</li>
+              <li>範囲はドラッグでの移動・四隅と辺のハンドルでのサイズ変更、または右側の座標数値入力のどちらからでも変更できます(相互に反映されます)。</li>
+              <li>アップロード時は画像の解像度・比率から最も近いプロファイルが自動的に選ばれますが、アップロード画面でも手動で切り替えられます。</li>
+              <li>このモーダルを閉じてもログイン状態は維持されます。</li>
+            </ul>
+          </div>
+
+          <div class="settings-layout">
+            <aside class="profile-sidebar">
+              <h3><span class="material-symbols-outlined">smartphone</span> 機種プロファイル</h3>
+              <div id="profile-list" class="profile-list"></div>
+              <button id="btn-new-profile" class="btn btn-primary full-width">
+                <span class="material-symbols-outlined" style="font-size:1rem;">add</span> 新規プロファイル
+              </button>
+              <hr>
+              <button id="btn-export-profiles" class="btn btn-text full-width">
+                <span class="material-symbols-outlined" style="font-size:1rem;">download</span> エクスポート (JSON)
+              </button>
+              <button id="btn-import-profiles" class="btn btn-text full-width">
+                <span class="material-symbols-outlined" style="font-size:1rem;">upload</span> インポート (JSON)
+              </button>
+              <input type="file" id="import-file-input" accept="application/json" style="display:none;">
+            </aside>
+
+            <main class="editor-main">
+              <div class="editor-toolbar">
+                <input type="text" id="profile-name-input" placeholder="機種名 (例: iPhone13, GalaxyS23 など)">
+                <label class="btn btn-secondary file-label">
+                  <span class="material-symbols-outlined" style="font-size:1rem;">image</span> サンプル画像を選択
+                  <input type="file" id="sample-image-input" accept="image/*" style="display:none;">
+                </label>
+                <button id="btn-save-profile" class="btn btn-primary">
+                  <span class="material-symbols-outlined" style="font-size:1rem;">save</span> この設定を保存
+                </button>
+                <button id="btn-delete-profile" class="btn btn-danger">
+                  <span class="material-symbols-outlined" style="font-size:1rem;">delete</span> 削除
+                </button>
+              </div>
+
+              <div class="region-tabs" id="region-tabs"></div>
+
+              <div class="editor-body">
+                <div id="image-editor-container" class="image-editor-container">
+                  <div id="no-image-placeholder" class="no-image-placeholder">サンプル画像を選択してください</div>
+                  <img id="sample-img" style="display:none;" alt="サンプル画像">
+                </div>
+
+                <div class="coordinate-panel">
+                  <h3 id="coord-panel-title">範囲の座標</h3>
+                  <p class="coord-panel-hint" id="coord-panel-hint"></p>
+                  <label>X (左端, px)
+                    <input type="number" id="coord-x" min="0">
+                  </label>
+                  <label>Y (上端, px)
+                    <input type="number" id="coord-y" min="0">
+                  </label>
+                  <label>幅 (px)
+                    <input type="number" id="coord-w" min="1">
+                  </label>
+                  <label>高さ (px)
+                    <input type="number" id="coord-h" min="1">
+                  </label>
+                  <p class="coord-hint">画像上の枠を直接ドラッグして移動、四隅・辺のハンドルをドラッグしてサイズ変更することもできます。</p>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 実測ログモーダル: 座標範囲・二値化後の画像・OCR結果・信頼度・矛盾チェック結果を確認できる -->
+    <div id="debugLogModal" class="modal" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-form-content">
+        <div class="modal-header">
+          <span><span class="material-symbols-outlined">manage_search</span> 実測ログ <small id="debug-log-subtitle" style="font-weight:normal; margin-left:8px; color:#777; font-size:0.85rem;"></small></span>
+          <span style="cursor:pointer;" onclick="closeDebugLogModal()">&times;</span>
+        </div>
+        <div id="debug-log-content" class="debug-log-body"></div>
+        <div class="form-actions">
+          <button class="btn-cancel" onclick="closeDebugLogModal()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="auth-section">
+        <span id="auth-status">未ログイン</span>
+
+        <button type="button" id="settings_link" class="btn-settings-link" onclick="openSettingsModal()">
+            <span class="material-symbols-outlined">tune</span> 読み取り設定
+        </button>
+
+        <button id="btn-select-mode" class="btn-mode" onclick="toggleSelectMode()">
+            <span class="material-symbols-outlined">check_box</span> 選択モード
+        </button>
+
+        <button id="upload_button" class="btn-auth btn-upload" onclick="openBatchModal('upload')" style="display: none;">
+          <span class="material-symbols-outlined">add_photo_alternate</span> アップロード
+        </button>
+
+        <button id="authorize_button" class="btn-auth" onclick="handleAuthClick()">
+          <span class="material-symbols-outlined">login</span> Googleでログイン
+        </button>
+        <button id="signout_button" class="btn-auth btn-signout" onclick="handleSignoutClick()" style="display: none;">
+          <span class="material-symbols-outlined">logout</span> ログアウト
+        </button>
+      </div>
+
+      <div id="notification-area" class="notification-area"></div>
+
+      <h2><span class="material-symbols-outlined">library_music</span> リザルト管理 (My Drive)</h2>
+
+      <div class="controls">
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">sort</span> 並べ替え</label>
+          <div class="sort-controls-row">
+            <select id="sort-mode">
+              <option value="name">名前順</option>
+              <option value="level">楽曲レベル順</option>
+              <option value="miss">ミス数順</option>
+              <option value="date">追加日順</option>
+            </select>
+            <button type="button" id="sort-direction-btn" class="btn-sort-direction"></button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">filter_alt</span> FC状況</label>
+          <select id="filter-fc" onchange="updateView()">
+            <option value="all">すべて</option>
+            <option value="fc">FC済み (FC-0)</option>
+            <option value="unfc">未FC (失点あり)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">remove_circle</span> 失点数 (範囲)</label>
+          <div class="range-inputs">
+            <input type="number" id="filter-miss-min" placeholder="0" min="0">
+            <span>~</span>
+            <input type="number" id="filter-miss-max" placeholder="Max" min="0">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">speed</span> 難易度</label>
+          <select id="filter-diff" onchange="updateView()"></select>
+        </div>
+
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">manage_search</span> 曲名検索</label>
+          <input type="text" id="filter-title" placeholder="曲名を入力...">
+        </div>
+
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">search</span> レベル検索</label>
+          <input type="number" id="filter-level" placeholder="">
+        </div>
+
+        <div class="control-group">
+          <label><span class="material-symbols-outlined">military_tech</span> 自己ベストのみ</label>
+          <label class="switch">
+            <input type="checkbox" id="filter-best-only">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <span id="result-count">ログインしてください</span>
+      </div>
+
+      <div id="load-progress-wrap" class="load-progress-wrap"><div id="load-progress-bar" class="load-progress-bar"></div></div>
+
+      <div id="loader">
+        <div class="spinner"></div>
+        <div id="loader-text">データを読み込み中...</div>
+      </div>
+
+      <div id="grid" class="grid"></div>
+    </div>
+
+    <div id="batch-actions">
+        <button class="btn-batch deselect" onclick="clearSelection()"><span class="material-symbols-outlined">close</span> 選択解除</button>
+        <button class="btn-batch delete" onclick="batchDelete()"><span class="material-symbols-outlined">delete</span> 削除</button>
+        <button class="btn-batch edit" onclick="batchEdit()"><span class="material-symbols-outlined">edit_note</span> 編集・解析</button>
+        <div style="margin-left:auto; display:flex; align-items:center; color:#666;">
+            <span id="selected-count">0</span> 件選択中
+        </div>
+    </div>
+
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/device-profiles.js"></script>
+    <script src="js/music-db.js"></script>
+    <script src="js/result-reconciler.js"></script>
+    <script src="js/drive-client.js"></script>
+    <script src="js/drive-records.js"></script>
+    <script src="js/personal-best.js"></script>
+    <script src="js/ocr-analyzer.js"></script>
+    <script src="js/debug-log.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/selection-mode.js"></script>
+    <script src="js/grid-view.js"></script>
+    <script src="js/upload-editor.js"></script>
+    <script src="js/settings-page.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

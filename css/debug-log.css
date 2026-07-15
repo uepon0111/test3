@@ -1,0 +1,51 @@
+/*
+ * debug-log.css
+ * -----------------------------------------------------------------------
+ * 「実測ログ」モーダル(debug-log.js が描画する内容)専用のスタイル。
+ * -----------------------------------------------------------------------
+ */
+
+.debug-log-body { flex: 1; overflow-y: auto; padding: 20px; box-sizing: border-box; background: #f8f9fa; }
+
+.log-section { background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 16px; }
+.log-section h4 { margin: 0 0 10px 0; font-size: 0.95rem; color: #333; display: flex; align-items: center; gap: 6px; }
+.log-empty { color: #999; font-size: 0.85rem; margin: 0; }
+
+/* --- 警告一覧 --- */
+.log-warning-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; margin-bottom: 6px; }
+.log-warning-item:last-child { margin-bottom: 0; }
+.log-warning-item .material-symbols-outlined { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.log-warning-item.log-level-ok { background-color: #d4edda; color: #155724; }
+.log-warning-item.log-level-info { background-color: #e2f0ff; color: #004085; }
+.log-warning-item.log-level-warn { background-color: #fff3cd; color: #856404; }
+.log-warning-item.log-level-error { background-color: #f8d7da; color: #721c24; }
+
+/* --- 判断の過程 --- */
+.reasoning-list { margin: 0; padding-left: 20px; font-size: 0.85rem; color: #555; line-height: 1.8; }
+
+/* --- 項目カード --- */
+.log-field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.log-field-card { border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: #fff; }
+.log-field-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f0f2f5; }
+.log-field-label { font-weight: bold; font-size: 0.85rem; color: #333; }
+
+.confidence-badge { font-size: 0.7rem; font-weight: bold; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.confidence-badge.conf-high { background-color: #d4edda; color: #155724; }
+.confidence-badge.conf-medium { background-color: #fff3cd; color: #856404; }
+.confidence-badge.conf-low { background-color: #f8d7da; color: #721c24; }
+
+.log-field-body { padding: 10px 12px; }
+.log-field-image {
+  display: block; max-width: 100%; max-height: 110px; margin: 0 auto 10px auto;
+  background: repeating-conic-gradient(#e9ecef 0% 25%, #fff 0% 50%) 0 0 / 16px 16px;
+  border: 1px solid #ddd; border-radius: 4px;
+}
+.log-field-meta { font-size: 0.78rem; color: #555; line-height: 1.7; }
+.log-field-meta > div { overflow-wrap: anywhere; }
+.log-meta-key { display: inline-block; min-width: 108px; color: #888; font-weight: bold; }
+.log-field-meta code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+.log-meta-error { color: #c0392b; margin-top: 4px; }
+
+@media (max-width: 640px) {
+  .log-field-grid { grid-template-columns: 1fr; }
+}

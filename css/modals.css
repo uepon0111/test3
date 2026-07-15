@@ -1,0 +1,101 @@
+/*
+ * modals.css
+ * -----------------------------------------------------------------------
+ * 画像モーダル・一括アップロード/編集モーダルのスタイル。
+ * 元のindex.htmlから移植し、判定内訳を3項目→5項目(PERFECT/GREAT/GOOD/BAD/MISS)に拡張、
+ * コンボ数入力・機種プロファイル選択を追加しています。
+ * -----------------------------------------------------------------------
+ */
+
+/* Modals */
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+.modal-content-img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); object-fit: contain; }
+
+/* Generic Batch/Edit Modal */
+.modal-form-content { background-color: #fff; border-radius: 12px; width: 95%; max-width: 1000px; height: 85vh; box-shadow: 0 5px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; font-weight: bold; font-size: 1.2rem; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: #fff; gap: 10px; }
+.modal-header > span:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Split View Layout */
+.split-container { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 250px; border-right: 1px solid #eee; overflow-y: auto; background-color: #f8f9fa; display: flex; flex-direction: column; flex-shrink: 0; }
+
+.sidebar-toolbar { padding: 10px; border-bottom: 1px solid #ddd; background: #fff; display: flex; justify-content: center; }
+.btn-analyze-all { width: 100%; font-size: 0.8rem; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: bold; }
+.btn-analyze-all:hover { background: #138496; }
+
+.sidebar-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.2s; position: relative; }
+.sidebar-item:hover { background-color: #eee; }
+.sidebar-item.active { background-color: var(--active-color); border-left: 4px solid #007bff; }
+.sidebar-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; background: #ddd; flex-shrink: 0; }
+.sidebar-info { overflow: hidden; font-size: 0.8rem; flex-grow: 1; min-width: 0; }
+.sidebar-title { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-status { font-size: 0.75rem; color: #666; display: flex; justify-content: space-between; align-items: center; }
+.btn-remove-side { border: none; background: none; color: #999; cursor: pointer; padding: 5px; flex-shrink: 0; }
+.btn-remove-side:hover { color: #dc3545; }
+
+.main-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.editor-layout { display: flex; flex-wrap: wrap; gap: 20px; height: 100%; }
+.preview-pane { flex: 1; min-width: 300px; background: #000; display: flex; justify-content: center; align-items: center; border-radius: 8px; overflow: hidden; position: relative; max-height: 500px; }
+.preview-pane img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.form-pane { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 15px; position: relative; }
+
+.form-group { margin-bottom: 5px; min-width: 0; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.85rem; color: #555; }
+
+/* 判定内訳: PERFECT / GREAT / GOOD / BAD / MISS の5項目。狭い画面では折り返す。 */
+.breakdown-group { display: flex; flex-wrap: wrap; gap: 8px; background: #f0f2f5; padding: 10px; border-radius: 8px; }
+.breakdown-item { flex: 1 1 55px; min-width: 55px; text-align: center; }
+.breakdown-item label { font-size: 0.72rem; margin-bottom: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.breakdown-item input { width: 100%; text-align: center; font-weight: bold; box-sizing: border-box; padding: 8px 4px; }
+.total-score { text-align: right; font-weight: bold; margin-top: 5px; font-size: 0.9rem; color: #333; }
+
+/* コンボ数・機種プロファイル (新規) */
+.side-by-side-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.side-by-side-row .form-group { flex: 1; min-width: 140px; }
+
+.form-actions { padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; background: #fff; flex-shrink: 0; }
+.btn-cancel { background-color: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+.btn-submit { background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.btn-submit:disabled { background-color: #ccc; cursor: not-allowed; }
+
+.btn-reanalyze { background-color: #007bff; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin-bottom: 10px; }
+.btn-reanalyze:hover { background-color: #0056b3; }
+
+/* Drop Zone */
+.drop-zone { border: 2px dashed #ccc; border-radius: 8px; padding: 40px; text-align: center; color: #777; transition: all 0.2s; cursor: pointer; background-color: #fcfcfc; margin: 20px; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.drop-zone:hover, .drop-zone.dragover { border-color: #007bff; background-color: #f0f7ff; color: #007bff; }
+
+.upload-status { font-weight: bold; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; display: inline-block; white-space: nowrap; }
+.upload-status.processing { background-color: #e2f0ff; color: #007bff; }
+.upload-status.done { background-color: #d4edda; color: #155724; }
+.upload-status.error { background-color: #f8d7da; color: #721c24; }
+.upload-status.pending { background-color: #eee; color: #777; }
+/* 総合判断(result-reconciler.js)が warning/error を検出した場合の状態表示 */
+.upload-status.warn { background-color: #fff3cd; color: #856404; }
+.upload-status.warn-error { background-color: #f8d7da; color: #721c24; }
+
+.btn-view-log {
+  background-color: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 6px;
+  cursor: pointer; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; margin-bottom: 10px;
+}
+.btn-view-log:hover { background-color: #5a6268; }
+.btn-view-log:disabled { background-color: #ccc; cursor: not-allowed; }
+
+/* 総合判断の結果を編集フォーム上部に要約表示するバナー */
+.form-warnings-banner {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px;
+  font-size: 0.82rem; margin-bottom: 12px; line-height: 1.4;
+}
+.form-warnings-banner .material-symbols-outlined { font-size: 1.1rem; flex-shrink: 0; }
+.form-warnings-banner.banner-ok { background-color: #d4edda; color: #155724; }
+.form-warnings-banner.banner-info { background-color: #e2f0ff; color: #004085; }
+.form-warnings-banner.banner-warn { background-color: #fff3cd; color: #856404; }
+.form-warnings-banner.banner-error { background-color: #f8d7da; color: #721c24; }
+
+/* Batch Selection Bar */
+#batch-actions { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #ddd; padding: 15px 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: none; justify-content: center; gap: 15px; z-index: 900; box-sizing: border-box; flex-wrap: wrap; }
+.btn-batch { padding: 10px 20px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; color: white; white-space: nowrap; }
+.btn-batch.delete { background-color: #dc3545; }
+.btn-batch.edit { background-color: #007bff; }
+.btn-batch.deselect { background-color: #6c757d; }
