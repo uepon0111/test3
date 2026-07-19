@@ -1,0 +1,25 @@
+/*
+ * autocomplete.css
+ * -----------------------------------------------------------------------
+ * js/autocomplete.js (曲名の手動登録欄・ページ内曲名検索欄の候補ドロップダウン) 専用のスタイル。
+ * document.body 直下に position:fixed で描画されるため、他のモーダルより手前に出るよう
+ * z-index を高めに設定しています。
+ * -----------------------------------------------------------------------
+ */
+
+.ac-dropdown {
+  position: fixed; z-index: 2000; background: #fff; border: 1px solid var(--border-color, #ddd);
+  border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); overflow-y: auto; max-height: 320px;
+  font-family: inherit; padding: 4px;
+}
+
+.ac-item {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer; min-width: 0;
+}
+.ac-item:hover, .ac-item.ac-item-active { background-color: var(--active-color, #e8f0fe); }
+
+.ac-item-primary { font-weight: bold; font-size: 0.92rem; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-item-secondary { font-size: 0.78rem; color: #888; white-space: nowrap; flex-shrink: 0; }
+
+.ac-empty { padding: 10px 12px; font-size: 0.82rem; color: #999; text-align: center; }
