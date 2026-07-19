@@ -1,0 +1,38 @@
+/*
+ * autocomplete.css
+ * -----------------------------------------------------------------------
+ * title-autocomplete.js が生成する検索候補ドロップダウンのスタイル。
+ * ドロップダウン本体は document.body 直下に position:fixed で生成され、
+ * 表示のたびに対象の入力欄の位置を基準に再配置される(モーダル内のスクロール
+ * 領域にクリップされてしまうのを避けるため)。
+ * -----------------------------------------------------------------------
+ */
+
+.autocomplete-dropdown {
+  position: fixed;
+  z-index: 2500;
+  background: #fff;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover,
+.autocomplete-item.highlighted { background-color: #e8f0fe; }
+
+.autocomplete-item-title {
+  font-size: 0.9rem; font-weight: bold; color: #333;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.autocomplete-item-sub {
+  font-size: 0.75rem; color: #888; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
