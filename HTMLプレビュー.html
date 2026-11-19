@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>HTMLプレビュー</title>
+<style>
+:root{--bg:#f3f7fb;--card:#fff;--ink:#1c2733;--mute:#586a7c;--line:#d6e0ea;--acc:#0b8a86;--acc-d:#08716e;--acc-s:#e2f5f3;--warn:#c2410c;--warn-s:#fff1e8;--ok:#0f7a4a;--ok-s:#e6f6ee;--err:#b42318;--err-s:#fdecea;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 "Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",Meiryo,system-ui,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:28px 16px 48px}
+header{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.logo{width:46px;height:46px;border-radius:12px;background:var(--acc);color:#fff;display:grid;place-items:center;flex:none}
+h1{font-size:22px;line-height:1.3;margin:0;letter-spacing:.02em}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.tabs{display:flex;gap:4px;overflow-x:auto}
+.tab{display:flex;align-items:center;gap:8px;padding:10px 16px;border:0;border-bottom:3px solid transparent;background:none;color:var(--mute);font:inherit;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;white-space:nowrap}
+.tab:hover{color:var(--ink);background:#e7eff6}
+.tab[aria-selected=true]{color:var(--acc-d);border-bottom-color:var(--acc);background:var(--card)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:0 14px 14px 14px;padding:20px}
+.panel[hidden]{display:none}
+.drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:28px 16px;border:2px dashed #9bb8c9;border-radius:12px;background:#f8fbfd;color:var(--mute);cursor:pointer;position:relative}
+.drop:hover,.drop.over{border-color:var(--acc);background:var(--acc-s);color:var(--acc-d)}
+.drop:focus-within{outline:3px solid #7fd1cc;outline-offset:2px}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop .ic{width:30px;height:30px}
+.drop b{color:var(--ink)}
+.info{display:flex;align-items:center;gap:8px;margin:12px 0 0;color:var(--mute);font-size:14px;word-break:break-all}
+.note{font-size:13px;color:var(--mute);margin:10px 0 0}
+.row{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center;margin-top:16px}
+.row[hidden]{display:none}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:#eef4f9}
+.btn:focus-visible,.tab:focus-visible,select:focus-visible,input[type=text]:focus-visible,textarea:focus-visible{outline:3px solid #7fd1cc;outline-offset:2px}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.pri:hover{background:var(--acc-d)}
+.btn.warn{color:var(--warn);border-color:#f2c4a8;background:var(--warn-s)}
+.btn.warn:hover{background:#ffe2d1}
+select,input[type=text],textarea{font:inherit;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:7px 10px}
+select{max-width:100%}
+input[type=text]{width:150px}
+textarea{display:block;width:100%;min-height:320px;resize:vertical;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;line-height:1.6;tab-size:2}
+label.f{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mute)}
+.list{margin:12px 0 0;padding:8px 12px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#f8fbfd;font-size:13px;list-style:none;line-height:1.8;color:var(--mute)}
+.list:empty{display:none}
+.list li{display:flex;gap:8px;align-items:center;word-break:break-all}
+.list .ic{width:14px;height:14px}
+#msg{margin-top:14px;display:flex;gap:8px;align-items:flex-start;padding:10px 14px;border-radius:10px;font-size:14px}
+#msg[hidden]{display:none}
+#msg .ic{margin-top:4px}
+#msg.ok{background:var(--ok-s);color:var(--ok)}
+#msg.err{background:var(--err-s);color:var(--err)}
+#msg.inf{background:var(--acc-s);color:var(--acc-d)}
+.foot{margin-top:18px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.foot p{margin:0;font-size:13px;color:var(--mute);flex:1 1 320px}
+@media (max-width:480px){.tab{padding:10px 10px;gap:6px;font-size:14px}.panel{padding:14px}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-mon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+<symbol id="i-code" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M10 13l-2 2 2 2M14 13l2 2-2 2"/></symbol>
+<symbol id="i-zip" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></symbol>
+<symbol id="i-txt" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+<symbol id="i-clr" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></symbol>
+<symbol id="i-ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="i-ng" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></symbol>
+</svg>
+
+<div class="wrap">
+<header>
+  <div class="logo"><svg class="ic" style="width:24px;height:24px"><use href="#i-mon"/></svg></div>
+  <div><h1>HTMLプレビュー</h1><p>HTMLファイル・ZIP・テキストを読み込んで、新しいタブでプレビューします。</p></div>
+</header>
+
+<div class="tabs" role="tablist" aria-label="読み込み方法">
+  <button class="tab" role="tab" id="t-html" aria-controls="p-html" aria-selected="true"><svg class="ic"><use href="#i-code"/></svg>HTMLファイル</button>
+  <button class="tab" role="tab" id="t-zip" aria-controls="p-zip" aria-selected="false" tabindex="-1"><svg class="ic"><use href="#i-zip"/></svg>ZIPファイル</button>
+  <button class="tab" role="tab" id="t-txt" aria-controls="p-txt" aria-selected="false" tabindex="-1"><svg class="ic"><use href="#i-txt"/></svg>テキスト入力</button>
+</div>
+
+<section class="panel" id="p-html" role="tabpanel" aria-labelledby="t-html">
+  <label class="drop" data-drop="html"><input type="file" id="f-html" accept=".html,.htm,text/html"><svg class="ic"><use href="#i-up"/></svg><span><b>HTMLファイルを選択</b>、またはここにドロップ</span></label>
+  <p class="info" id="i-html">ファイルが選択されていません</p>
+  <p class="note">画像・CSS・JSを別ファイルで参照している場合は、ZIPで読み込んでください。</p>
+  <div class="row"><button class="btn pri" id="pv-html"><svg class="ic"><use href="#i-open"/></svg>プレビュー</button></div>
+</section>
+
+<section class="panel" id="p-zip" role="tabpanel" aria-labelledby="t-zip" hidden>
+  <label class="drop" data-drop="zip"><input type="file" id="f-zip" accept=".zip,application/zip"><svg class="ic"><use href="#i-up"/></svg><span><b>ZIPファイルを選択</b>、またはここにドロップ</span></label>
+  <p class="info" id="i-zip">ファイルが選択されていません</p>
+  <div class="row" id="entry-row" hidden><label class="f">表示するHTML<select id="entry"></select></label></div>
+  <ul class="list" id="zlist" aria-label="ZIPの内容"></ul>
+  <p class="note">HTML内の相対パスのCSS・JS・画像・フォントを埋め込んで表示します。ページ間リンクや、fetchなどによる動的な読み込みには対応していません。</p>
+  <div class="row"><button class="btn pri" id="pv-zip"><svg class="ic"><use href="#i-open"/></svg>プレビュー</button></div>
+</section>
+
+<section class="panel" id="p-txt" role="tabpanel" aria-labelledby="t-txt" hidden>
+  <textarea id="ta" spellcheck="false" aria-label="HTMLソース" placeholder="ここにHTMLを貼り付けるか、入力してください"></textarea>
+  <div class="row">
+    <button class="btn pri" id="pv-txt"><svg class="ic"><use href="#i-open"/></svg>プレビュー</button>
+    <label class="f">ファイル名<input type="text" id="fname" value="index" autocomplete="off"></label>
+    <button class="btn" id="sv-html"><svg class="ic"><use href="#i-dl"/></svg>.htmlで保存</button>
+    <button class="btn" id="sv-txt"><svg class="ic"><use href="#i-dl"/></svg>.txtで保存</button>
+  </div>
+</section>
+
+<div id="msg" role="status" aria-live="polite" hidden></div>
+
+<div class="foot">
+  <p>入力内容・読み込んだファイル・ページのストレージ・Cache API・Cookieを消去します。ブラウザ本体の閲覧キャッシュは、ブラウザの設定から削除してください。</p>
+  <button class="btn warn" id="clear"><svg class="ic"><use href="#i-clr"/></svg><span>データ・キャッシュをクリア</span></button>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const ic=n=>`<svg class="ic"><use href="#i-${n}"/></svg>`;
+const S={html:null,zip:null,zc:new Map()};
+const MIME={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',avif:'image/avif',svg:'image/svg+xml',ico:'image/x-icon',bmp:'image/bmp',mp4:'video/mp4',webm:'video/webm',mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',json:'application/json',css:'text/css',js:'text/javascript',html:'text/html',htm:'text/html',txt:'text/plain'};
+const fmt=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
+function msg(t,k){const m=$('#msg');m.className=k||'inf';m.hidden=false;m.innerHTML=ic(k==='err'?'ng':'ok')+'<span></span>';m.lastChild.textContent=t;}
+function info(id,i,t){const e=$('#'+id);e.innerHTML=i?ic(i):'';e.append(t);}
+
+/* タブ */
+const tabs=$$('.tab');
+function sel(i){tabs.forEach((t,j)=>{const on=i===j;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#'+t.getAttribute('aria-controls')).hidden=!on;});}
+tabs.forEach((t,i)=>{t.onclick=()=>sel(i);t.onkeydown=e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const n=(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length;sel(n);tabs[n].focus();}};});
+
+/* 読み込み */
+async function setHtml(f){
+  if(!f)return;
+  try{S.html={name:f.name,text:await f.text()};info('i-html','code',`${f.name}(${fmt(f.size)})`);msg('HTMLファイルを読み込みました。','ok');}
+  catch(e){msg('ファイルを読み込めませんでした: '+e.message,'err');}
+}
+async function setZip(f){
+  if(!f)return;
+  if(!window.JSZip){msg('ZIPライブラリを読み込めませんでした。ネットワーク接続を確認してください。','err');return;}
+  try{
+    const z=await JSZip.loadAsync(f),files={};
+    z.forEach((p,e)=>{if(!e.dir&&!/^__MACOSX\/|(^|\/)\.DS_Store$/.test(p))files[p]=e;});
+    const names=Object.keys(files),isIdx=p=>/(^|\/)index\.html?$/i.test(p);
+    const pages=names.filter(p=>/\.html?$/i.test(p)).sort((a,b)=>a.split('/').length-b.split('/').length||(isIdx(b)-isIdx(a))||a.localeCompare(b));
+    S.zip={name:f.name,files};S.zc.clear();
+    const sl=$('#entry');sl.innerHTML='';
+    pages.forEach(p=>{const o=document.createElement('option');o.value=o.textContent=p;sl.appendChild(o);});
+    $('#entry-row').hidden=!pages.length;
+    const ul=$('#zlist');ul.innerHTML='';
+    names.forEach(p=>{const li=document.createElement('li');li.innerHTML=ic(/\.html?$/i.test(p)?'code':'txt');li.append(p);ul.appendChild(li);});
+    info('i-zip','zip',`${f.name}(${fmt(f.size)}、${names.length}ファイル)`);
+    pages.length?msg('ZIPを読み込みました。','ok'):msg('ZIPの中にHTMLファイルが見つかりません。','err');
+  }catch(e){msg('ZIPを開けませんでした: '+e.message,'err');}
+}
+$('#f-html').onchange=e=>setHtml(e.target.files[0]);
+$('#f-zip').onchange=e=>setZip(e.target.files[0]);
+$$('.drop').forEach(d=>{
+  ['dragenter','dragover'].forEach(v=>d.addEventListener(v,e=>{e.preventDefault();d.classList.add('over');}));
+  ['dragleave','drop'].forEach(v=>d.addEventListener(v,e=>{e.preventDefault();d.classList.remove('over');}));
+  d.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)(d.dataset.drop==='zip'?setZip:setHtml)(f);});
+});
+
+/* ZIP内のファイルを1つのHTMLにまとめる */
+async function buildZip(){
+  const F=S.zip.files,entry=$('#entry').value,txt=k=>F[k].async('string');
+  const res=(base,ref)=>{
+    if(!ref||/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(ref.trim()))return null;
+    let p=ref.trim().split('#')[0].split('?')[0];
+    try{p=decodeURIComponent(p);}catch(e){}
+    const parts=p.startsWith('/')?[]:base.split('/').slice(0,-1);
+    for(const s of p.split('/')){if(s==='..')parts.pop();else if(s&&s!=='.')parts.push(s);}
+    const key=parts.join('/'),low=key.toLowerCase();
+    return F[key]?key:Object.keys(F).find(k=>k.toLowerCase()===low)||null;
+  };
+  const uri=async k=>{
+    if(S.zc.has(k))return S.zc.get(k);
+    const x=k.split('.').pop().toLowerCase();
+    const u=`data:${MIME[x]||'application/octet-stream'};base64,`+await F[k].async('base64');
+    S.zc.set(k,u);return u;
+  };
+  const rep=async(s,re,fn)=>{const ms=[...s.matchAll(re)],rs=await Promise.all(ms.map(m=>fn(...m)));let i=0;return s.replace(re,()=>rs[i++]);};
+  const css=async(t,base,seen)=>{
+    t=await rep(t,/@import\s+(?:url\(\s*)?['"]?([^'")\s;]+)['"]?\s*\)?[^;]*;/g,async(m,u)=>{const k=res(base,u);return k&&!seen.includes(k)?css(await txt(k),k,[...seen,k]):m;});
+    return rep(t,/url\(\s*(['"]?)([^'")]+)\1\s*\)/g,async(m,q,u)=>{const k=res(base,u);return k?`url("${await uri(k)}")`:m;});
+  };
+  const doc=new DOMParser().parseFromString(await txt(entry),'text/html'),jobs=[],job=f=>jobs.push(f());
+  doc.querySelectorAll('link[rel~=stylesheet][href]').forEach(el=>{
+    const k=res(entry,el.getAttribute('href'));
+    if(k)job(async()=>{const s=doc.createElement('style');s.textContent=await css(await txt(k),k,[k]);if(el.media)s.media=el.media;el.replaceWith(s);});
+  });
+  doc.querySelectorAll('script[src]').forEach(el=>{
+    const k=res(entry,el.getAttribute('src'));
+    if(k)job(async()=>{const s=doc.createElement('script');if(el.type)s.type=el.type;s.textContent=(await txt(k)).replace(/<\/script/gi,'<\\/script');el.replaceWith(s);});
+  });
+  doc.querySelectorAll('style').forEach(el=>job(async()=>{el.textContent=await css(el.textContent,entry,[entry]);}));
+  doc.querySelectorAll('[style*="url("]').forEach(el=>job(async()=>{el.setAttribute('style',await css(el.getAttribute('style'),entry,[entry]));}));
+  doc.querySelectorAll('img,source,video,audio,track,iframe,embed,object,input[src],link[href]:not([rel~=stylesheet])').forEach(el=>{
+    ['src','poster','data','href'].forEach(a=>{const k=el.hasAttribute(a)&&res(entry,el.getAttribute(a));if(k)job(async()=>el.setAttribute(a,await uri(k)));});
+    if(el.hasAttribute('srcset'))job(async()=>el.setAttribute('srcset',await rep(el.getAttribute('srcset'),/([^\s,]+)(\s+[\d.]+[wx])?/g,async(m,u,d)=>{const k=res(entry,u);return k?(await uri(k))+(d||''):m;})));
+  });
+  await Promise.all(jobs);
+  return '<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+}
+
+/* 新しいタブでプレビュー */
+async function show(build){
+  const w=window.open('about:blank','_blank');
+  if(!w){msg('新しいタブを開けませんでした。ブラウザでポップアップを許可してから、もう一度お試しください。','err');return;}
+  try{w.opener=null;}catch(e){}
+  try{
+    const h=await build();
+    w.document.open();w.document.write(h);w.document.close();
+    msg('新しいタブでプレビューを開きました。','ok');
+  }catch(e){try{w.close();}catch(_){}msg('プレビューを作成できませんでした: '+e.message,'err');}
+}
+$('#pv-html').onclick=()=>{if(!S.html)return msg('先にHTMLファイルを選択してください。','err');show(async()=>S.html.text);};
+$('#pv-zip').onclick=()=>{if(!S.zip||!$('#entry').value)return msg('先にHTMLを含むZIPファイルを選択してください。','err');show(buildZip);};
+$('#pv-txt').onclick=()=>{const t=$('#ta').value;if(!t.trim())return msg('HTMLを入力してください。','err');show(async()=>t);};
+
+/* テキストの保存 */
+const dlP=window.claude&&window.claude.use?window.claude.use('downloads').catch(()=>null):Promise.resolve(null);
+async function saveFile(name,data){
+  const d=await dlP;
+  if(d){
+    try{await d.save({filename:name,data});msg('保存しました: '+name,'ok');}
+    catch(e){const no=e&&e.code==='declined';msg(no?'保存をキャンセルしました。':'保存できませんでした: '+((e&&e.message)||'不明なエラー'),no?'inf':'err');}
+    return;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'text/plain;charset=utf-8'}));a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);msg('保存しました: '+name,'ok');
+}
+function saveText(ext){
+  const t=$('#ta').value;
+  if(!t)return msg('保存する内容がありません。','err');
+  const base=$('#fname').value.trim().replace(/\.(html?|txt)$/i,'').replace(/[\\\/:*?"<>|]/g,'_')||'index';
+  saveFile(base+'.'+ext,t);
+}
+$('#sv-html').onclick=()=>saveText('html');
+$('#sv-txt').onclick=()=>saveText('txt');
+
+/* データ・キャッシュのクリア(誤操作防止のため2回押し) */
+const cb=$('#clear'),cl=cb.querySelector('span');let armT=0;
+function rst(){armT=0;cl.textContent='データ・キャッシュをクリア';}
+async function clearAll(){
+  S.html=null;S.zip=null;S.zc.clear();
+  $('#ta').value='';$$('input[type=file]').forEach(i=>i.value='');
+  info('i-html','','ファイルが選択されていません');info('i-zip','','ファイルが選択されていません');
+  $('#zlist').innerHTML='';$('#entry').innerHTML='';$('#entry-row').hidden=true;
+  const tasks=[
+    ()=>{localStorage.clear();sessionStorage.clear();},
+    async()=>{for(const d of await indexedDB.databases())indexedDB.deleteDatabase(d.name);},
+    async()=>{for(const k of await caches.keys())await caches.delete(k);},
+    async()=>{for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();},
+    ()=>{document.cookie.split(';').forEach(c=>{const n=c.split('=')[0].trim();if(n)document.cookie=n+'=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';});}
+  ];
+  for(const t of tasks){try{await t();}catch(e){}}
+  msg('入力内容・読み込んだファイル・保存データ・キャッシュを消去しました。','ok');
+}
+cb.onclick=async()=>{
+  if(!armT){cl.textContent='もう一度押すと消去します';armT=setTimeout(rst,3500);return;}
+  clearTimeout(armT);rst();await clearAll();
+};
+</script>
+</body>
+</html>
